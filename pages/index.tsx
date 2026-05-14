@@ -713,6 +713,25 @@ function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (pa
         />
         <ProgramSnapshot />
       </div>
+
+      {/* What's working */}
+      <div>
+        <SectionHeader
+          title="What's working?"
+          subtitle="See which tools are driving the most student action"
+        />
+        <div style={{ display: "flex", gap: 16 }}>
+          <Card style={{ width: "25%", height: 220, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: "#ccc" }}>Card 1 — coming soon</span>
+          </Card>
+          <Card style={{ flex: 1, height: 220, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 12, color: "#ccc" }}>Card 2 — coming soon</span>
+          </Card>
+          <Card style={{ width: "25%", height: 220, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: "#ccc" }}>Card 3 — coming soon</span>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
