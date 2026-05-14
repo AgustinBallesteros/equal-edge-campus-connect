@@ -72,6 +72,37 @@ function FadeSlot({ show, children, style }: { show: boolean; children: React.Re
   );
 }
 
+// Dropdown / popover enter-exit (slide down + fade)
+function PopoverTransition({ show, children, style }: { show: boolean; children: React.ReactNode; style?: React.CSSProperties }) {
+  const [mounted, setMounted] = useState(show);
+  const [vis,     setVis]     = useState(show);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 180);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+  return (
+    <div style={{
+      opacity: vis ? 1 : 0,
+      transform: vis ? "translateY(0)" : "translateY(-6px)",
+      transition: "opacity 170ms ease, transform 170ms ease",
+      pointerEvents: vis ? "auto" : "none",
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
 // ─── Nav tokens ───────────────────────────────────────────────────────────────
 const NAV_REST_COLOR   = "#8E8E97";
 const NAV_ACTIVE_COLOR = "#3E4FD3";
@@ -239,9 +270,8 @@ function DashboardActions({
           </svg>
         </button>
 
-        {open && (
+        <PopoverTransition show={open} style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 40 }}>
           <div style={{
-            position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 40,
             background: "#fff", border: BORDER, borderRadius: 10,
             boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "6px 0", minWidth: 236,
           }}>
@@ -272,7 +302,7 @@ function DashboardActions({
               </div>
             ))}
           </div>
-        )}
+        </PopoverTransition>
       </div>
 
       {/* ── View tabs ── */}
@@ -480,12 +510,24 @@ const activated = ALUMNI.filter(a => a.status === "Activated").sort((a, b) => b.
 const scheduledDateLabel = `${MONTH_NAMES[CAL_TODAY_MONTH].slice(0, 3)} ${CAL_TODAY_DAY}`;
 
 function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void }) {
-  const [tab, setTab] = useState<LeaderTab>("All");
+  const [tab,     setTab]     = useState<LeaderTab>("All"); // button highlight
+  const [rowTab,  setRowTab]  = useState<LeaderTab>("All"); // actual data
+  const [rowsVis, setRowsVis] = useState(true);
   const [scheduled, setScheduled] = useState<Set<number>>(new Set());
 
-  const rows = tab === "All"
+  function switchTab(next: LeaderTab) {
+    if (next === tab) return;
+    setTab(next);           // button activates immediately
+    setRowsVis(false);      // rows fade out
+    setTimeout(() => {
+      setRowTab(next);      // swap data while invisible
+      requestAnimationFrame(() => setRowsVis(true)); // fade in
+    }, 160);
+  }
+
+  const rows = rowTab === "All"
     ? activated
-    : tab === "Needs Attention"
+    : rowTab === "Needs Attention"
       ? activated.filter(a => a.engagementScore < 60 || a.trend < 0)
       : activated.filter(a => a.trend >= 10);
 
@@ -506,7 +548,7 @@ function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void 
             {LEADER_TABS.map((t) => {
               const active = tab === t;
               return (
-                <button key={t} onClick={() => setTab(t)} style={{
+                <button key={t} onClick={() => switchTab(t)} style={{
                   height: 28, paddingInline: 10, borderRadius: 6, border: "none",
                   background: active ? "#fff" : "transparent",
                   color: active ? "#121216" : "#8E8E97",
@@ -528,7 +570,12 @@ function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void 
       </div>
 
       {/* Rows */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{
+        flex: 1, overflowY: "auto",
+        opacity: rowsVis ? 1 : 0,
+        transform: rowsVis ? "translateY(0)" : "translateY(4px)",
+        transition: "opacity 160ms ease, transform 160ms ease",
+      }}>
         {rows.map((a, i) => {
           const rank       = activated.indexOf(a) + 1;
           const trendUp    = a.trend > 0, trendDown = a.trend < 0;
@@ -668,8 +715,8 @@ function EngagementGraph({ view }: { view: ViewTab }) {
               <path d="M2 4l4 4 4-4"/>
             </svg>
           </button>
-          {open && (
-            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 20, background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", overflow: "hidden", minWidth: 180 }}>
+          <PopoverTransition show={open} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 20 }}>
+            <div style={{ background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", overflow: "hidden", minWidth: 180 }}>
               {(Object.keys(METRIC_LABELS) as GraphMetric[]).map(m => (
                 <button
                   key={m}
@@ -680,7 +727,7 @@ function EngagementGraph({ view }: { view: ViewTab }) {
                 </button>
               ))}
             </div>
-          )}
+          </PopoverTransition>
         </div>
       </div>
       <div style={{ paddingInline: 16, paddingBottom: 14 }}>
