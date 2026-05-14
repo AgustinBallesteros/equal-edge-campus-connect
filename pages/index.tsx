@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, type ReactElement } from "react";
-import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, type GraphViewKey } from "../data/mock";
+import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, type GraphViewKey } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,6 +20,10 @@ export const MS = {
 const SIDEBAR_W = "20%";
 const TOPBAR_H  = 64;
 const BORDER    = "1px solid #E5E5EA";
+
+// ─── Date/calendar utilities ──────────────────────────────────────────────────
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const { year: CAL_TODAY_YEAR, month: CAL_TODAY_MONTH, day: CAL_TODAY_DAY } = MOCK_TODAY;
 
 // ─── Nav tokens ───────────────────────────────────────────────────────────────
 const NAV_REST_COLOR   = "#8E8E97";
@@ -277,8 +281,11 @@ const LEADER_TABS: LeaderTab[] = ["All", "Needs Attention", "Rising Stars"];
 
 const activated = ALUMNI.filter(a => a.status === "Activated").sort((a, b) => b.engagementScore - a.engagementScore);
 
+const scheduledDateLabel = `${MONTH_NAMES[CAL_TODAY_MONTH].slice(0, 3)} ${CAL_TODAY_DAY}`;
+
 function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void }) {
   const [tab, setTab] = useState<LeaderTab>("All");
+  const [scheduled, setScheduled] = useState<Set<number>>(new Set());
 
   const rows = tab === "All"
     ? activated
@@ -317,9 +324,9 @@ function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void 
           </div>
         </div>
         {/* Column headers */}
-        <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 52px 80px 56px", gap: 8, padding: "0 8px 8px", borderBottom: BORDER }}>
-          {["#", "Student", "Score", "Trend", "Streak"].map((h, i) => (
-            <span key={h} style={{ fontSize: 11, fontWeight: 500, color: "#8E8E97", textAlign: i >= 2 ? "center" : "left" }}>{h}</span>
+        <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 48px 72px 52px 52px 72px 80px 104px", gap: 6, padding: "0 8px 8px", borderBottom: BORDER }}>
+          {["#", "Student", "Score", "Trend", "Streak", "Courses", "Completed", "Incomplete", ""].map((h, i) => (
+            <span key={i} style={{ fontSize: 11, fontWeight: 500, color: "#8E8E97", textAlign: i >= 2 ? "center" : "left" }}>{h}</span>
           ))}
         </div>
       </div>
@@ -327,14 +334,17 @@ function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void 
       {/* Rows */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {rows.map((a, i) => {
-          const rank = activated.indexOf(a) + 1;
-          const trendUp = a.trend > 0, trendDown = a.trend < 0;
+          const rank       = activated.indexOf(a) + 1;
+          const trendUp    = a.trend > 0, trendDown = a.trend < 0;
           const trendColor = trendUp ? "#10B981" : trendDown ? "#EF4444" : "#8E8E97";
           const trendArrow = trendUp ? "↑" : trendDown ? "↓" : "→";
+          const completed  = MOCK_COMPLETED_ACTIVITIES[a.id] ?? 0;
+          const incomplete = a.assignedActivityIds.length - completed;
+          const isScheduled = scheduled.has(a.id);
           return (
             <div key={a.id} style={{
-              display: "grid", gridTemplateColumns: "28px 1fr 52px 80px 56px",
-              gap: 8, padding: "8px 16px",
+              display: "grid", gridTemplateColumns: "24px 1fr 48px 72px 52px 52px 72px 80px 104px",
+              gap: 6, padding: "8px 16px",
               borderBottom: i < rows.length - 1 ? BORDER : "none",
               alignItems: "center",
             }}>
@@ -367,6 +377,35 @@ function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void 
               <span style={{ fontSize: 12, color: "#121216", textAlign: "center" }}>
                 {a.streak > 0 ? `🔥 ${a.streak}d` : "—"}
               </span>
+              {/* # Courses */}
+              <span style={{ fontSize: 12, color: "#121216", textAlign: "center" }}>
+                {a.assignedLessonIds.length}
+              </span>
+              {/* Assig. Completed */}
+              <span style={{ fontSize: 12, color: "#22A062", textAlign: "center" }}>
+                {completed}
+              </span>
+              {/* Assig. Incomplete */}
+              <span style={{ fontSize: 12, color: incomplete > 0 ? "#C72727" : "#8E8E97", textAlign: "center" }}>
+                {incomplete}
+              </span>
+              {/* Schedule 1-1 */}
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                {isScheduled
+                  ? <span style={{ fontSize: 11, color: "#8E8E97" }}>Scheduled {scheduledDateLabel}</span>
+                  : <button
+                      onClick={() => setScheduled(prev => new Set(prev).add(a.id))}
+                      style={{
+                        height: 26, paddingInline: 10, borderRadius: 6, border: "none",
+                        background: "#3E4FD3", color: "#fff",
+                        fontSize: 11, fontWeight: 500, fontFamily: "var(--font-inter)",
+                        cursor: "pointer", whiteSpace: "nowrap",
+                      }}
+                    >
+                      Schedule 1-1
+                    </button>
+                }
+              </div>
             </div>
           );
         })}
@@ -507,9 +546,7 @@ function MyIntake() {
 }
 
 // ── My Events ────────────────────────────────────────────────────────────────
-const { year: CAL_TODAY_YEAR, month: CAL_TODAY_MONTH, day: CAL_TODAY_DAY } = MOCK_TODAY;
 const CAL_DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 function buildCalendarGrid(year: number, month: number) {
   const firstDOW    = new Date(year, month, 1).getDay();

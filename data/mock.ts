@@ -549,6 +549,14 @@ export const MOCK_LESSONS_COMPLETED          = 52;  // out of 84 assigned to act
 export const MOCK_ACTIVITIES_OVERDUE         = 27;
 export const MOCK_ACTIVITIES_RESOLVED_WEEK   = 12;
 
+// Completed activity count per activated student (id → count)
+export const MOCK_COMPLETED_ACTIVITIES: Record<number, number> = {
+   1: 2,  2: 4,  3: 1,  4: 3,  5: 2,
+   6: 2,  7: 1,  8: 4,  9: 1, 10: 3,
+  11: 2, 12: 2, 13: 3, 14: 0, 15: 5,
+  16: 2, 17: 1, 18: 4,
+};
+
 // Script view counts (id → views)
 export const SCRIPT_VIEWS: Record<number, number> = {
   1: 41, 2: 19, 3: 34, 4: 28, 5: 22,
