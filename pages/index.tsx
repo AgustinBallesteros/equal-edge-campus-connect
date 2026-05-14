@@ -228,7 +228,7 @@ function Content() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [activeNav, setActiveNav] = useState("Roster");
+  const [activeNav, setActiveNav] = useState("Dashboard");
 
   return (
     <div
