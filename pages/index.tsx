@@ -67,24 +67,169 @@ const VIEW_KEY: Record<ViewTab, GraphViewKey> = {
   "This Semester": "semester",
 };
 
-function DashboardActions({ view, onViewChange }: { view: ViewTab; onViewChange: (v: ViewTab) => void }) {
+// ─── Customize tools config ───────────────────────────────────────────────────
+const TOOL_SECTIONS = [
+  {
+    key: "yourStudents" as const,
+    label: "Your Students",
+    tools: [
+      { key: "studentLeaderboard" as const, label: "Student Leaderboard" },
+      { key: "engagementGraph"    as const, label: "Engagement Graph"    },
+      { key: "assignedActivities" as const, label: "Assigned Activities" },
+      { key: "myIntake"           as const, label: "My Intake"           },
+      { key: "myEvents"           as const, label: "My Events"           },
+    ],
+  },
+  {
+    key: "programSnapshot" as const,
+    label: "Program Snapshot",
+    tools: [
+      { key: "programHealth"     as const, label: "Program Health"     },
+      { key: "studentsOnTrack"   as const, label: "Students on Track"  },
+      { key: "activationRate"    as const, label: "Activation Rate"    },
+      { key: "lessonsCompleted"  as const, label: "Lessons Completed"  },
+      { key: "activitiesOverdue" as const, label: "Activities Overdue" },
+    ],
+  },
+  {
+    key: "whatsWorking" as const,
+    label: "What's Working",
+    tools: [
+      { key: "scripts"  as const, label: "Scripts"  },
+      { key: "lessons"  as const, label: "Lessons"  },
+      { key: "messages" as const, label: "Messages" },
+    ],
+  },
+] as const;
+
+type ToolKey = typeof TOOL_SECTIONS[number]["tools"][number]["key"];
+type ToolsVisible = Record<ToolKey, boolean>;
+
+function initToolsVisible(): ToolsVisible {
+  return Object.fromEntries(
+    TOOL_SECTIONS.flatMap(s => s.tools.map(t => [t.key, true]))
+  ) as ToolsVisible;
+}
+
+// ─── Tri-state checkbox ───────────────────────────────────────────────────────
+type CheckState = "unchecked" | "partial" | "checked";
+
+function Checkbox({ state }: { state: CheckState }) {
+  const filled = state === "checked" || state === "partial";
+  return (
+    <div style={{
+      width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+      border: filled ? "none" : "1.5px solid #C5C5CC",
+      background: filled ? "#3E4FD3" : "#fff",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      pointerEvents: "none",
+    }}>
+      {state === "checked" && (
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+          <path d="M1.5 4.5l2 2L7.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+      {state === "partial" && (
+        <svg width="7" height="2" viewBox="0 0 7 2" fill="none">
+          <path d="M0 1h7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// ─── Dashboard actions (toolbar) ──────────────────────────────────────────────
+function DashboardActions({
+  view, onViewChange, toolsVisible, setToolsVisible,
+}: {
+  view: ViewTab;
+  onViewChange: (v: ViewTab) => void;
+  toolsVisible: ToolsVisible;
+  setToolsVisible: (tv: ToolsVisible) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  function getSectionState(section: typeof TOOL_SECTIONS[number]): CheckState {
+    const keys = section.tools.map(t => t.key);
+    const n = keys.filter(k => toolsVisible[k]).length;
+    if (n === 0) return "unchecked";
+    if (n === keys.length) return "checked";
+    return "partial";
+  }
+
+  function toggleSection(section: typeof TOOL_SECTIONS[number]) {
+    const newVal = getSectionState(section) === "unchecked"; // if unchecked → true; else → false
+    const patch: Partial<ToolsVisible> = {};
+    section.tools.forEach(t => { patch[t.key] = newVal; });
+    setToolsVisible({ ...toolsVisible, ...patch } as ToolsVisible);
+  }
+
+  function toggleTool(key: ToolKey) {
+    setToolsVisible({ ...toolsVisible, [key]: !toolsVisible[key] });
+  }
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <button style={{
-        height: 36, paddingInline: 14, borderRadius: 8,
-        border: BORDER, background: "#fff", color: "#121216",
-        fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)",
-        cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-      }}>
-        Customize tools
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round">
-          <path d="M3 5l4 4 4-4"/>
-        </svg>
-      </button>
-      <div style={{
-        display: "flex", alignItems: "center",
-        background: "#F8F8FA", borderRadius: 8, padding: 3, border: BORDER,
-      }}>
+
+      {/* ── Customize tools ── */}
+      <div
+        style={{ position: "relative" }}
+        tabIndex={-1}
+        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}
+      >
+        <button
+          onClick={() => setOpen(o => !o)}
+          style={{
+            height: 36, paddingInline: 14, borderRadius: 8,
+            border: BORDER, background: open ? "#F8F8FA" : "#fff", color: "#121216",
+            fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)",
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+          }}
+        >
+          Customize tools
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round">
+            <path d={open ? "M3 9l4-4 4 4" : "M3 5l4 4 4-4"}/>
+          </svg>
+        </button>
+
+        {open && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 40,
+            background: "#fff", border: BORDER, borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "6px 0", minWidth: 236,
+          }}>
+            {TOOL_SECTIONS.map((section, si) => (
+              <div key={section.key}>
+                {si > 0 && <div style={{ height: 1, background: "#E5E5EA", margin: "4px 0" }} />}
+
+                {/* Section row */}
+                <div
+                  onClick={() => toggleSection(section)}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 14px", cursor: "pointer" }}
+                >
+                  <Checkbox state={getSectionState(section)} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>{section.label}</span>
+                </div>
+
+                {/* Tool rows */}
+                {section.tools.map(tool => (
+                  <div
+                    key={tool.key}
+                    onClick={() => toggleTool(tool.key)}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 14px 5px 38px", cursor: "pointer" }}
+                  >
+                    <Checkbox state={toolsVisible[tool.key] ? "checked" : "unchecked"} />
+                    <span style={{ fontSize: 13, fontWeight: 400, color: "#121216" }}>{tool.label}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── View tabs ── */}
+      <div style={{ display: "flex", alignItems: "center", background: "#F8F8FA", borderRadius: 8, padding: 3, border: BORDER }}>
         {VIEW_TABS.map((tab) => {
           const active = view === tab;
           return (
@@ -96,12 +241,11 @@ function DashboardActions({ view, onViewChange }: { view: ViewTab; onViewChange:
               fontFamily: "var(--font-inter)", cursor: "pointer",
               boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
               transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
-            }}>
-              {tab}
-            </button>
+            }}>{tab}</button>
           );
         })}
       </div>
+
     </div>
   );
 }
@@ -109,9 +253,14 @@ function DashboardActions({ view, onViewChange }: { view: ViewTab; onViewChange:
 // ─── Page configs ─────────────────────────────────────────────────────────────
 type PageConfig = { title: string; description: string; actions: ReactElement | null };
 
-function makePageConfigs(view: ViewTab, setView: (v: ViewTab) => void): Record<NavId, PageConfig> {
+function makePageConfigs(
+  view: ViewTab,
+  setView: (v: ViewTab) => void,
+  toolsVisible: ToolsVisible,
+  setToolsVisible: (tv: ToolsVisible) => void,
+): Record<NavId, PageConfig> {
   return {
-    1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",              actions: <DashboardActions view={view} onViewChange={setView} /> },
+    1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",              actions: <DashboardActions view={view} onViewChange={setView} toolsVisible={toolsVisible} setToolsVisible={setToolsVisible} /> },
     2: { title: "Student Roster", description: "Manage student access and invitation status",             actions: <><BtnMain label="Add Student" /><BtnSecondary label="Import CSV" /></> },
     3: { title: "Learn Library",  description: "Browse and assign lessons to students",                   actions: null },
     4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" /> },
@@ -694,12 +843,15 @@ const maxScriptViews    = SCRIPT_VIEWS[topScripts[0]?.id] ?? 1;
 const unreadThreadCount = MESSAGE_THREADS.filter(t => t.unreadCount > 0).length;
 
 // ── What's working — cards ────────────────────────────────────────────────────
-function WhatsWorkingCards() {
+function WhatsWorkingCards({ toolsVisible }: { toolsVisible: ToolsVisible }) {
+  const showScripts  = toolsVisible.scripts;
+  const showLessons  = toolsVisible.lessons;
+  const showMessages = toolsVisible.messages;
   return (
     <div style={{ display: "flex", gap: 16 }}>
 
       {/* Card 1 — Scripts */}
-      <StatCard style={{ width: "25%", flexShrink: 0 }}>
+      {showScripts && <StatCard style={{ width: "25%", flexShrink: 0 }}>
         <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Scripts</p>
         <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Most viewed by your students</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -717,10 +869,10 @@ function WhatsWorkingCards() {
             );
           })}
         </div>
-      </StatCard>
+      </StatCard>}
 
       {/* Card 2 — Lessons */}
-      <StatCard style={{ flex: 1 }}>
+      {showLessons && <StatCard style={{ flex: 1 }}>
         <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Lessons</p>
         <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Completion rate across all assigned lessons</p>
         <span style={{ display: "block", fontSize: 56, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 8 }}>{lessonsRate}%</span>
@@ -736,10 +888,10 @@ function WhatsWorkingCards() {
         <p style={{ margin: 0, fontSize: 12, color: "#C72727" }}>
           Lowest: {MOCK_LESSON_WORST.title} &nbsp; {MOCK_LESSON_WORST.rate}%
         </p>
-      </StatCard>
+      </StatCard>}
 
       {/* Card 3 — Messages */}
-      <StatCard style={{ width: "25%", flexShrink: 0 }}>
+      {showMessages && <StatCard style={{ width: "25%", flexShrink: 0 }}>
         <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Messages</p>
         <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Conversations this month</p>
         <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
@@ -756,7 +908,7 @@ function WhatsWorkingCards() {
           <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#22A062", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#fff", flexShrink: 0 }}>{unreadThreadCount}</span>
           <span style={{ fontSize: 12, color: "#8E8E97" }}>unread conversations</span>
         </div>
-      </StatCard>
+      </StatCard>}
 
     </div>
   );
@@ -805,119 +957,158 @@ const lessonsNotStarted    = totalAssignedLessons - MOCK_LESSONS_COMPLETED;
 const totalAssignedActs    = activated.reduce((s, a) => s + a.assignedActivityIds.length, 0);
 
 // ── Program snapshot ──────────────────────────────────────────────────────────
-function ProgramSnapshot() {
+function ProgramSnapshot({ toolsVisible }: { toolsVisible: ToolsVisible }) {
+  const showHealth    = toolsVisible.programHealth;
+  const showOnTrack   = toolsVisible.studentsOnTrack;
+  const showActRate   = toolsVisible.activationRate;
+  const showLessons   = toolsVisible.lessonsCompleted;
+  const showOverdue   = toolsVisible.activitiesOverdue;
+
+  const hasTopRow    = showHealth || showOnTrack || showActRate;
+  const hasBottomRow = showLessons || showOverdue;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Top row — 3 stat cards × 192px */}
-      <div style={{ display: "flex", gap: 16 }}>
+      {hasTopRow && (
+        <div style={{ display: "flex", gap: 16 }}>
+          {showHealth && (
+            <StatCard style={{ height: 192 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+                <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{programHealth}</span>
+                <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/100</span>
+              </div>
+              <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Program Health</p>
+              <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Your students{"'"} average engagement this month</p>
+              <div style={{ height: 6, borderRadius: 3, background: "#E5E5EA", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${programHealth}%`, borderRadius: 3, background: "#3E4FD3" }} />
+              </div>
+              <p style={{ margin: "10px 0 0", fontSize: 12, color: "#22A062" }}>↑ +{PROGRAM_HEALTH_DELTA} since last month</p>
+            </StatCard>
+          )}
+          {showOnTrack && (
+            <StatCard style={{ height: 192 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+                <span style={{ fontSize: 64, fontWeight: 700, color: "#22A062", lineHeight: 1 }}>{onTrackCount}</span>
+                <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/{activated.length}</span>
+              </div>
+              <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Students on track</p>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>for semester completion</p>
+            </StatCard>
+          )}
+          {showActRate && (
+            <StatCard style={{ height: 192 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+                <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{activationPct}%</span>
+              </div>
+              <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Activation rate</p>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of invited students are active</p>
+            </StatCard>
+          )}
+        </div>
+      )}
 
-        {/* Program Health */}
-        <StatCard style={{ height: 192 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
-            <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{programHealth}</span>
-            <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/100</span>
-          </div>
-          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Program Health</p>
-          <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Your students{"'"} average engagement this month</p>
-          <div style={{ height: 6, borderRadius: 3, background: "#E5E5EA", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${programHealth}%`, borderRadius: 3, background: "#3E4FD3" }} />
-          </div>
-          <p style={{ margin: "10px 0 0", fontSize: 12, color: "#22A062" }}>↑ +{PROGRAM_HEALTH_DELTA} since last month</p>
-        </StatCard>
-
-        {/* Students on track */}
-        <StatCard style={{ height: 192 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
-            <span style={{ fontSize: 64, fontWeight: 700, color: "#22A062", lineHeight: 1 }}>{onTrackCount}</span>
-            <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/{activated.length}</span>
-          </div>
-          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Students on track</p>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>for semester completion</p>
-        </StatCard>
-
-        {/* Activation rate */}
-        <StatCard style={{ height: 192 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
-            <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{activationPct}%</span>
-          </div>
-          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Activation rate</p>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of invited students are active</p>
-        </StatCard>
-
-      </div>
-      {/* Bottom row — 4 cards × 128px */}
-      <div style={{ display: "flex", gap: 16 }}>
-
-        {/* Card 4 — Lessons completed */}
-        <StatCard>
-          <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 6 }}>{MOCK_LESSONS_COMPLETED}</span>
-          <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Lessons completed</p>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedLessons} assigned &middot; {lessonsRate}% rate</p>
-        </StatCard>
-
-        {/* Card 5 — Activities overdue */}
-        <StatCard>
-          <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#C72727", lineHeight: 1, marginBottom: 6 }}>{MOCK_ACTIVITIES_OVERDUE}</span>
-          <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Activities overdue</p>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedActs} total &middot; {MOCK_ACTIVITIES_RESOLVED_WEEK} resolved last week</p>
-        </StatCard>
-
-        {[6, 7].map(n => (
-          <Card key={n} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
-          </Card>
-        ))}
-      </div>
+      {/* Bottom row */}
+      {hasBottomRow && (
+        <div style={{ display: "flex", gap: 16 }}>
+          {showLessons && (
+            <StatCard>
+              <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 6 }}>{MOCK_LESSONS_COMPLETED}</span>
+              <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Lessons completed</p>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedLessons} assigned &middot; {lessonsRate}% rate</p>
+            </StatCard>
+          )}
+          {showOverdue && (
+            <StatCard>
+              <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#C72727", lineHeight: 1, marginBottom: 6 }}>{MOCK_ACTIVITIES_OVERDUE}</span>
+              <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Activities overdue</p>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedActs} total &middot; {MOCK_ACTIVITIES_RESOLVED_WEEK} resolved last week</p>
+            </StatCard>
+          )}
+          {[6, 7].map(n => (
+            <Card key={n} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Dashboard root ────────────────────────────────────────────────────────────
-function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (page: NavId) => void }) {
+function DashboardContent({ view, onNavigate, toolsVisible }: { view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible }) {
+  // ── "Your Students" section visibility ──
+  const tv = toolsVisible;
+  const showLeaderboard   = tv.studentLeaderboard;
+  const showEngagement    = tv.engagementGraph;
+  const showActivities    = tv.assignedActivities;
+  const showIntake        = tv.myIntake;
+  const showEvents        = tv.myEvents;
+  const hasLeftCol        = showLeaderboard;
+  const hasRightCol       = showEngagement || showActivities || showIntake || showEvents;
+  const showYourStudents  = hasLeftCol || hasRightCol;
+
+  // ── "Program Snapshot" section visibility ──
+  const showProgramSection = tv.programHealth || tv.studentsOnTrack || tv.activationRate || tv.lessonsCompleted || tv.activitiesOverdue;
+
+  // ── "What's Working" section visibility ──
+  const showWhatsWorking   = tv.scripts || tv.lessons || tv.messages;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
       {/* Your students */}
-      <div>
-        <SectionHeader title="Your students" />
-        <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
-          <div style={{ flex: "0 0 50%", minWidth: 0, display: "flex", flexDirection: "column" }}>
-            <StudentLeaderboard onNavigate={onNavigate} />
-          </div>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-            <EngagementGraph view={view} />
-            <MyAssignedActivities />
-            <MyIntake />
-            <MyEvents onNavigate={onNavigate} />
+      {showYourStudents && (
+        <div>
+          <SectionHeader title="Your students" />
+          <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
+            {hasLeftCol && (
+              <div style={{ flex: "0 0 50%", minWidth: 0, display: "flex", flexDirection: "column" }}>
+                <StudentLeaderboard onNavigate={onNavigate} />
+              </div>
+            )}
+            {hasRightCol && (
+              <div style={{ flex: hasLeftCol ? 1 : "0 0 100%", display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+                {showEngagement  && <EngagementGraph view={view} />}
+                {showActivities  && <MyAssignedActivities />}
+                {showIntake      && <MyIntake />}
+                {showEvents      && <MyEvents onNavigate={onNavigate} />}
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Program snapshot */}
-      <div>
-        <SectionHeader
-          title="How is your program doing?"
-          subtitle="A snapshot of engagement across all your students this month"
-        />
-        <ProgramSnapshot />
-      </div>
+      {showProgramSection && (
+        <div>
+          <SectionHeader
+            title="How is your program doing?"
+            subtitle="A snapshot of engagement across all your students this month"
+          />
+          <ProgramSnapshot toolsVisible={toolsVisible} />
+        </div>
+      )}
 
       {/* What's working */}
-      <div>
-        <SectionHeader
-          title="What's working?"
-          subtitle="See which tools are driving the most student action"
-        />
-        <WhatsWorkingCards />
-      </div>
+      {showWhatsWorking && (
+        <div>
+          <SectionHeader
+            title="What's working?"
+            subtitle="See which tools are driving the most student action"
+          />
+          <WhatsWorkingCards toolsVisible={toolsVisible} />
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void }) {
+function Content({ page, view, onNavigate, toolsVisible }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible }) {
   return (
     <div style={{ flex: 1, overflowY: "auto", background: "#fff", padding: 24 }}>
-      {page === 1 && <DashboardContent view={view} onNavigate={onNavigate} />}
+      {page === 1 && <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} />}
       {page !== 1 && (
         <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
       )}
@@ -927,16 +1118,17 @@ function Content({ page, view, onNavigate }: { page: NavId; view: ViewTab; onNav
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [activeNav, setActiveNav] = useState<NavId>(1);
-  const [dashView,  setDashView]  = useState<ViewTab>("This Month");
-  const pageConfigs = makePageConfigs(dashView, setDashView);
+  const [activeNav,    setActiveNav]    = useState<NavId>(1);
+  const [dashView,     setDashView]     = useState<ViewTab>("This Month");
+  const [toolsVisible, setToolsVisible] = useState<ToolsVisible>(initToolsVisible);
+  const pageConfigs = makePageConfigs(dashView, setDashView, toolsVisible, setToolsVisible);
 
   return (
     <div className={inter.variable} style={{ width: "100vw", height: "100vh", overflow: "hidden", display: "flex", fontFamily: "var(--font-inter)", userSelect: "none", WebkitUserSelect: "none" }}>
       <Sidebar active={activeNav} onSelect={setActiveNav} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <TopBar page={activeNav} configs={pageConfigs} />
-        <Content page={activeNav} view={dashView} onNavigate={setActiveNav} />
+        <Content page={activeNav} view={dashView} onNavigate={setActiveNav} toolsVisible={toolsVisible} />
       </div>
     </div>
   );
