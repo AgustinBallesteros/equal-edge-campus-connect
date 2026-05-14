@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, type ReactElement } from "react";
-import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, type GraphViewKey } from "../data/mock";
+import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, type GraphViewKey } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -682,10 +682,13 @@ function StatCard({ children, style }: { children: React.ReactNode; style?: Reac
 }
 
 // Computed stats
-const invitedAlumni   = ALUMNI.filter(a => a.status === "Invited");
-const programHealth   = Math.round(activated.reduce((s, a) => s + a.engagementScore, 0) / activated.length);
-const onTrackCount    = activated.filter(a => a.engagementScore > 40).length;
-const activationPct   = Math.round(activated.length / (activated.length + invitedAlumni.length) * 100);
+const invitedAlumni        = ALUMNI.filter(a => a.status === "Invited");
+const programHealth        = Math.round(activated.reduce((s, a) => s + a.engagementScore, 0) / activated.length);
+const onTrackCount         = activated.filter(a => a.engagementScore > 40).length;
+const activationPct        = Math.round(activated.length / (activated.length + invitedAlumni.length) * 100);
+const totalAssignedLessons = ALUMNI.reduce((s, a) => s + a.assignedLessonIds.length, 0);
+const lessonsRate          = Math.round(MOCK_LESSONS_COMPLETED / totalAssignedLessons * 100);
+const totalAssignedActs    = ALUMNI.reduce((s, a) => s + a.assignedActivityIds.length, 0);
 
 // ── Program snapshot ──────────────────────────────────────────────────────────
 function ProgramSnapshot() {
@@ -730,7 +733,22 @@ function ProgramSnapshot() {
       </div>
       {/* Bottom row — 4 cards × 128px */}
       <div style={{ display: "flex", gap: 16 }}>
-        {[4, 5, 6, 7].map(n => (
+
+        {/* Card 4 — Lessons completed */}
+        <StatCard style={{ height: 128 }}>
+          <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 6 }}>{MOCK_LESSONS_COMPLETED}</span>
+          <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Lessons completed</p>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedLessons} assigned &middot; {lessonsRate}% rate</p>
+        </StatCard>
+
+        {/* Card 5 — Activities overdue */}
+        <StatCard style={{ height: 128 }}>
+          <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#C72727", lineHeight: 1, marginBottom: 6 }}>{MOCK_ACTIVITIES_OVERDUE}</span>
+          <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Activities overdue</p>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedActs} total &middot; {MOCK_ACTIVITIES_RESOLVED_WEEK} resolved last week</p>
+        </StatCard>
+
+        {[6, 7].map(n => (
           <Card key={n} style={{ flex: 1, height: 128, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
           </Card>

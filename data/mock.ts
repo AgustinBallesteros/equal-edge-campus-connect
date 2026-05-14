@@ -192,7 +192,10 @@ export const WEEKLY_ENGAGEMENT: EngagementPoint[] = [
 
 // ─── Program health delta (mock month-over-month change) ─────────────────────
 
-export const PROGRAM_HEALTH_DELTA = 6; // +6 pts since last month
+export const PROGRAM_HEALTH_DELTA            = 6;  // +6 pts since last month
+export const MOCK_LESSONS_COMPLETED          = 92;
+export const MOCK_ACTIVITIES_OVERDUE         = 27;
+export const MOCK_ACTIVITIES_RESOLVED_WEEK   = 12;
 
 // ─── Mock "today" reference date ─────────────────────────────────────────────
 // All UI that needs "today" should read from here, not hardcode dates.
