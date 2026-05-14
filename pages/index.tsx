@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, type GraphViewKey } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, type GraphViewKey, type Alumni } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -429,6 +429,77 @@ function AddStudentModal({ show, onClose }: { show: boolean; onClose: () => void
             fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
           }}>
             Add Student
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Remove Student Modal ─────────────────────────────────────────────────────
+function RemoveStudentModal({ studentName, show, onClose }: { studentName: string; show: boolean; onClose: () => void }) {
+  const [mounted, setMounted] = useState(show);
+  const [vis,     setVis]     = useState(show);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "background 220ms ease",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 12, width: 440,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.16)",
+          opacity: vis ? 1 : 0,
+          transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)",
+          transition: "opacity 220ms ease, transform 220ms ease",
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: "24px 24px 20px" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Remove Student</div>
+          <div style={{ fontSize: 13, color: "#8E8E97", lineHeight: 1.55 }}>
+            This will permanently remove <span style={{ color: "#121216", fontWeight: 500 }}>{studentName}</span> from the roster. This cannot be undone.
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E8E8EC" }} />
+
+        {/* Footer */}
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{
+            height: 36, paddingInline: 16, borderRadius: 8, border: BORDER,
+            background: "#fff", color: "#121216",
+            fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+          }}>
+            Cancel
+          </button>
+          <button style={{
+            height: 36, paddingInline: 16, borderRadius: 8, border: "none",
+            background: "#C72727", color: "#fff",
+            fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+          }}>
+            Remove
           </button>
         </div>
       </div>
@@ -1392,9 +1463,10 @@ function RosterPage() {
   const [filter,   setFilter]   = useState<RosterFilter>("All");
   const [search,   setSearch]   = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
-  const [sortKey,  setSortKey]  = useState<SortKey>("name");
-  const [sortDir,  setSortDir]  = useState<SortDir>("asc");
+  const [openMenu,     setOpenMenu]     = useState<number | null>(null);
+  const [sortKey,      setSortKey]      = useState<SortKey>("name");
+  const [sortDir,      setSortDir]      = useState<SortDir>("asc");
+  const [removeTarget, setRemoveTarget] = useState<Alumni | null>(null);
 
   // Close action menu on outside click
   useEffect(() => {
@@ -1648,9 +1720,9 @@ function RosterPage() {
                       {[
                         { label: "Invite Student",      color: a.status !== "Not Invited" ? "#C5C5CC" : "#121216", enabled: a.status === "Not Invited" },
                         { label: "Resend Invitation",   color: a.status === "Invited" ? "#121216" : "#C5C5CC", enabled: a.status === "Invited" },
-                        { label: "Remove Student",      color: "#C72727", enabled: true },
-                      ].map(({ label, color, enabled }) => (
-                        <button key={label} disabled={!enabled} style={{
+                        { label: "Remove Student",      color: "#C72727", enabled: true, onSelect: () => { setOpenMenu(null); setRemoveTarget(a); } },
+                      ].map(({ label, color, enabled, onSelect }) => (
+                        <button key={label} disabled={!enabled} onClick={onSelect} style={{
                           display: "block", width: "100%", textAlign: "left",
                           padding: "9px 14px", border: "none", background: "#fff",
                           fontSize: 13, color, fontFamily: "var(--font-inter)",
@@ -1688,6 +1760,12 @@ function RosterPage() {
         </div>
 
       </div>
+
+      <RemoveStudentModal
+        studentName={removeTarget?.name ?? ""}
+        show={removeTarget !== null}
+        onClose={() => setRemoveTarget(null)}
+      />
     </div>
   );
 }
