@@ -430,6 +430,118 @@ export const WEEKLY_ENGAGEMENT: EngagementPoint[] = [
   { label: "May W2", score: 94 },
 ];
 
+// ─── Messages ────────────────────────────────────────────────────────────────
+
+export type MessageSender = "staff" | "student";
+
+export type Message = {
+  id:     number;
+  sender: MessageSender;
+  text:   string;
+  date:   string; // ISO date
+  time:   string; // "HH:MM"
+};
+
+export type MessageThread = {
+  id:          number;
+  studentId:   number; // references ALUMNI id
+  messages:    Message[];
+  unreadCount: number; // unread messages from student
+};
+
+export const MESSAGE_THREADS: MessageThread[] = [
+  // ── Aaliyah Johnson (id:2) — check-in, 2 unread ───────────────────────────
+  {
+    id: 1, studentId: 2, unreadCount: 2,
+    messages: [
+      { id: 1,  sender: "staff",   date: "2026-05-07", time: "09:12", text: "Hi Aaliyah! Just checking in — how are you feeling about the semester so far?" },
+      { id: 2,  sender: "student", date: "2026-05-07", time: "10:45", text: "Hi Dr. Okafor! Things are going well overall. I finished the SMART goals activity and it really helped me focus." },
+      { id: 3,  sender: "staff",   date: "2026-05-08", time: "08:30", text: "That's great to hear! Have you started thinking about your end-of-semester reflection?" },
+      { id: 4,  sender: "student", date: "2026-05-08", time: "11:20", text: "Not yet, but I will this weekend. I also wanted to ask — is the activity deadline firm or is there any flexibility?" },
+      { id: 5,  sender: "student", date: "2026-05-13", time: "14:05", text: "Hey, just following up on my question about the deadline 😊" },
+      { id: 6,  sender: "student", date: "2026-05-14", time: "09:30", text: "No worries if you're busy, I can also check with the office!" },
+    ],
+  },
+  // ── Jasmine Wright (id:15) — accommodation escalation, 3 unread ───────────
+  {
+    id: 2, studentId: 15, unreadCount: 3,
+    messages: [
+      { id: 7,  sender: "staff",   date: "2026-05-06", time: "10:00", text: "Hi Jasmine, I wanted to check in about your accommodation letter for Professor Chen's class. Did you hear back?" },
+      { id: 8,  sender: "student", date: "2026-05-06", time: "13:15", text: "Not yet. I sent it two weeks ago and followed up once but still nothing." },
+      { id: 9,  sender: "staff",   date: "2026-05-07", time: "09:05", text: "That's not okay — I'll reach out to the DSO today to loop them in. Your exam is next Thursday, right?" },
+      { id: 10, sender: "student", date: "2026-05-07", time: "09:45", text: "Yes, May 15th. I'm really stressed about it." },
+      { id: 11, sender: "student", date: "2026-05-13", time: "16:00", text: "Update: I heard back from DSO and they said they contacted the professor directly." },
+      { id: 12, sender: "student", date: "2026-05-14", time: "08:10", text: "The professor replied and confirmed I can use the testing center 🎉 Thank you so much for your help!" },
+      { id: 13, sender: "student", date: "2026-05-14", time: "08:12", text: "I just wanted to make sure you saw the update before the exam tomorrow." },
+    ],
+  },
+  // ── Jordan Reyes (id:1) — exam prep, 0 unread ─────────────────────────────
+  {
+    id: 3, studentId: 1, unreadCount: 0,
+    messages: [
+      { id: 14, sender: "staff",   date: "2026-05-09", time: "11:00", text: "Jordan, finals are coming up — have you scheduled your extended time exams at the testing center?" },
+      { id: 15, sender: "student", date: "2026-05-09", time: "14:30", text: "Yes! I booked all three. Two are next week and one is the week after." },
+      { id: 16, sender: "staff",   date: "2026-05-09", time: "15:05", text: "Perfect. Don't forget to use the anxiety management strategies from the lesson. You've got this!" },
+      { id: 17, sender: "student", date: "2026-05-10", time: "09:00", text: "Will do. That lesson was actually really helpful — I've been using the breathing technique before practice tests." },
+    ],
+  },
+  // ── Maya Williams (id:6) — missed session, 2 unread ──────────────────────
+  {
+    id: 4, studentId: 6, unreadCount: 2,
+    messages: [
+      { id: 18, sender: "staff",   date: "2026-05-10", time: "14:00", text: "Hi Maya, I noticed you missed our check-in session yesterday. Is everything okay?" },
+      { id: 19, sender: "student", date: "2026-05-11", time: "10:20", text: "I'm sorry about that! I had a family situation come up. Can we reschedule?" },
+      { id: 20, sender: "staff",   date: "2026-05-11", time: "11:00", text: "Of course, no worries. I have openings Tuesday or Thursday this week — does either work?" },
+      { id: 21, sender: "student", date: "2026-05-13", time: "17:45", text: "Thursday at 2pm works great for me!" },
+      { id: 22, sender: "student", date: "2026-05-14", time: "10:00", text: "Just confirming Thursday 2pm — see you then!" },
+    ],
+  },
+  // ── Tyler Brooks (id:13) — internship advice, 0 unread ───────────────────
+  {
+    id: 5, studentId: 13, unreadCount: 0,
+    messages: [
+      { id: 23, sender: "student", date: "2026-05-08", time: "16:00", text: "Hi Dr. Okafor! I got a call back from the internship I applied to. Do you have any tips for the interview?" },
+      { id: 24, sender: "staff",   date: "2026-05-08", time: "16:45", text: "Tyler, that's fantastic news! Yes — make sure you review your resume bullet points so you can speak to each one. Do you want to do a quick mock interview?" },
+      { id: 25, sender: "student", date: "2026-05-08", time: "17:10", text: "That would be amazing. I'm free Monday morning or Wednesday afternoon." },
+      { id: 26, sender: "staff",   date: "2026-05-09", time: "08:30", text: "Monday at 10am works for me. I'll send a calendar invite. Come ready with your top 3 strengths!" },
+      { id: 27, sender: "student", date: "2026-05-09", time: "09:00", text: "Done! See you Monday. Thank you so much 🙏" },
+    ],
+  },
+  // ── Marcus Thompson (id:3) — grade concern, 1 unread ─────────────────────
+  {
+    id: 6, studentId: 3, unreadCount: 1,
+    messages: [
+      { id: 28, sender: "staff",   date: "2026-05-05", time: "10:30", text: "Hi Marcus, I saw your engagement score has dipped a bit this month. Anything going on that I should know about?" },
+      { id: 29, sender: "student", date: "2026-05-05", time: "13:00", text: "Yeah, I've been struggling with one of my courses. The midterm didn't go well and I've been pretty discouraged." },
+      { id: 30, sender: "staff",   date: "2026-05-06", time: "09:15", text: "I hear you. Let's talk through it — sometimes one grade doesn't reflect what you're capable of. Can you meet this week?" },
+      { id: 31, sender: "student", date: "2026-05-12", time: "11:30", text: "I met with my professor during office hours and she offered a makeup assignment. Feeling better about it now!" },
+    ],
+  },
+  // ── Destiny Robinson (id:10) — lesson question, 0 unread ─────────────────
+  {
+    id: 7, studentId: 10, unreadCount: 0,
+    messages: [
+      { id: 32, sender: "student", date: "2026-05-11", time: "15:20", text: "Hi Dr. Okafor! I finished the 'Building Study Groups' lesson and I was wondering — do you know if there are any study groups already formed for accounting?" },
+      { id: 33, sender: "staff",   date: "2026-05-11", time: "16:00", text: "Great question! I'll check with the tutoring center and get back to you. In the meantime, the peer communication script in your library has a good template for reaching out to classmates." },
+      { id: 34, sender: "student", date: "2026-05-11", time: "16:30", text: "Oh perfect, I'll use that. Thank you!" },
+      { id: 35, sender: "staff",   date: "2026-05-12", time: "09:00", text: "Just checked — the tutoring center has a study group forming this Friday at 3pm. Room 204 in the library. Thought you might want to join!" },
+      { id: 36, sender: "student", date: "2026-05-12", time: "09:45", text: "That's perfect, I'll be there. You're the best 😊" },
+    ],
+  },
+  // ── Kwame Asante (id:8) — rising star check-in, 0 unread ─────────────────
+  {
+    id: 8, studentId: 8, unreadCount: 0,
+    messages: [
+      { id: 37, sender: "staff",   date: "2026-05-13", time: "10:00", text: "Kwame! I just reviewed your progress this month and your engagement score is one of the highest in the cohort. Really impressive work." },
+      { id: 38, sender: "student", date: "2026-05-13", time: "12:15", text: "Thank you so much! I've been putting in a lot of effort this semester. The goal-setting lesson really changed how I approach my week." },
+      { id: 39, sender: "staff",   date: "2026-05-13", time: "13:00", text: "It shows. Have you thought about applying for the peer mentor program next year? I think you'd be a great fit." },
+      { id: 40, sender: "student", date: "2026-05-13", time: "14:30", text: "I hadn't thought about it but that actually sounds really cool. Can you send me more info?" },
+      { id: 41, sender: "staff",   date: "2026-05-13", time: "15:00", text: "Absolutely — I'll forward the application details. Deadline is June 1st so you have time." },
+      { id: 42, sender: "student", date: "2026-05-13", time: "15:20", text: "Amazing, thank you! I'll look it over this weekend." },
+    ],
+  },
+];
+
 // ─── Program health delta (mock month-over-month change) ─────────────────────
 
 export const PROGRAM_HEALTH_DELTA            = 6;  // +6 pts since last month
