@@ -205,10 +205,47 @@ export type CalendarEvent = {
 };
 
 export const CALENDAR_EVENTS: CalendarEvent[] = [
-  { id: 1, title: "SAS Drop-In Hours",         date: "2026-05-14", timeLabel: "10:00–12:00"  },
-  { id: 2, title: "Financial Aid Deadline",     date: "2026-05-15", timeLabel: "by 5:00 PM"   },
+  { id: 1, title: "SAS Drop-In Hours",          date: "2026-05-14", timeLabel: "10:00–12:00" },
+  { id: 2, title: "Financial Aid Deadline",      date: "2026-05-15", timeLabel: "by 5:00 PM"  },
   { id: 3, title: "Disability Services Meeting", date: "2026-05-20", timeLabel: "2:00–3:30"   },
-  { id: 4, title: "Academic Advising Day",      date: "2026-05-21", timeLabel: "9:00–4:00"    },
-  { id: 5, title: "End of Semester Check-In",   date: "2026-05-28", timeLabel: "1:00–2:00"    },
-  { id: 6, title: "Graduation Rehearsal",       date: "2026-05-30", timeLabel: "10:00–1:00"   },
+  { id: 4, title: "Academic Advising Day",       date: "2026-05-21", timeLabel: "9:00–4:00"   },
+  { id: 5, title: "End of Semester Check-In",    date: "2026-05-28", timeLabel: "1:00–2:00"   },
+  { id: 6, title: "Graduation Rehearsal",        date: "2026-05-30", timeLabel: "10:00–1:00"  },
 ];
+
+// ─── Graph data (0–100 scale) ─────────────────────────────────────────────────
+
+export type GraphViewKey = "week" | "month" | "semester";
+export type GraphPoint   = { label: string; value: number };
+
+export const ENGAGEMENT_DATA: Record<GraphViewKey, GraphPoint[]> = {
+  week: [
+    { label: "Mon", value: 71 }, { label: "Tue", value: 76 }, { label: "Wed", value: 83 },
+    { label: "Thu", value: 88 }, { label: "Fri", value: 79 }, { label: "Sat", value: 62 },
+    { label: "Sun", value: 58 },
+  ],
+  month: [
+    { label: "Wk 1", value: 68 }, { label: "Wk 2", value: 73 }, { label: "Wk 3", value: 81 },
+    { label: "Wk 4", value: 88 }, { label: "Wk 5", value: 94 },
+  ],
+  semester: [
+    { label: "Jan", value: 34 }, { label: "Feb", value: 52 }, { label: "Mar", value: 68 },
+    { label: "Apr", value: 79 }, { label: "May", value: 91 },
+  ],
+};
+
+export const COMPLETION_DATA: Record<GraphViewKey, GraphPoint[]> = {
+  week: [
+    { label: "Mon", value: 45 }, { label: "Tue", value: 52 }, { label: "Wed", value: 61 },
+    { label: "Thu", value: 74 }, { label: "Fri", value: 68 }, { label: "Sat", value: 41 },
+    { label: "Sun", value: 33 },
+  ],
+  month: [
+    { label: "Wk 1", value: 52 }, { label: "Wk 2", value: 61 }, { label: "Wk 3", value: 70 },
+    { label: "Wk 4", value: 78 }, { label: "Wk 5", value: 82 },
+  ],
+  semester: [
+    { label: "Jan", value: 28 }, { label: "Feb", value: 44 }, { label: "Mar", value: 58 },
+    { label: "Apr", value: 69 }, { label: "May", value: 79 },
+  ],
+};

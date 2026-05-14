@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, type ReactElement } from "react";
-import { ALUMNI, WEEKLY_ENGAGEMENT, CALENDAR_EVENTS, MOCK_TODAY } from "../data/mock";
+import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, type GraphViewKey } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,8 +57,13 @@ function BtnSecondary({ label }: { label: string }) {
 const VIEW_TABS = ["This Week", "This Month", "This Semester"] as const;
 type ViewTab = typeof VIEW_TABS[number];
 
-function DashboardActions() {
-  const [view, setView] = useState<ViewTab>("This Month");
+const VIEW_KEY: Record<ViewTab, GraphViewKey> = {
+  "This Week":     "week",
+  "This Month":    "month",
+  "This Semester": "semester",
+};
+
+function DashboardActions({ view, onViewChange }: { view: ViewTab; onViewChange: (v: ViewTab) => void }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <button style={{
@@ -79,7 +84,7 @@ function DashboardActions() {
         {VIEW_TABS.map((tab) => {
           const active = view === tab;
           return (
-            <button key={tab} onClick={() => setView(tab)} style={{
+            <button key={tab} onClick={() => onViewChange(tab)} style={{
               height: 28, paddingInline: 12, borderRadius: 6, border: "none",
               background: active ? "#fff" : "transparent",
               color: active ? "#121216" : "#8E8E97",
@@ -100,17 +105,19 @@ function DashboardActions() {
 // ─── Page configs ─────────────────────────────────────────────────────────────
 type PageConfig = { title: string; description: string; actions: ReactElement | null };
 
-const PAGE_CONFIGS: Record<NavId, PageConfig> = {
-  1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",                  actions: <DashboardActions /> },
-  2: { title: "Student Roster", description: "Manage student access and invitation status",                 actions: <><BtnMain label="Add Student" /><BtnSecondary label="Import CSV" /></> },
-  3: { title: "Learn Library",  description: "Browse and assign lessons to students",                       actions: null },
-  4: { title: "Script Library", description: "Manage communication templates available to students",        actions: <BtnMain label="New Script" /> },
-  5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",         actions: <BtnMain label="New Activity" /> },
-  6: { title: "Messages",       description: "",                                                            actions: <BtnMain label="New Message" /> },
-  7: { title: "Events",         description: "Shared with all students in the app",                        actions: <BtnMain label="New Event" /> },
-  8: { title: "Resources",      description: "Links, documents, and videos available to all students",     actions: <BtnMain label="Add Resource" /> },
-  9: { title: "Settings",       description: "",                                                            actions: null },
-};
+function makePageConfigs(view: ViewTab, setView: (v: ViewTab) => void): Record<NavId, PageConfig> {
+  return {
+    1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",              actions: <DashboardActions view={view} onViewChange={setView} /> },
+    2: { title: "Student Roster", description: "Manage student access and invitation status",             actions: <><BtnMain label="Add Student" /><BtnSecondary label="Import CSV" /></> },
+    3: { title: "Learn Library",  description: "Browse and assign lessons to students",                   actions: null },
+    4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" /> },
+    5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
+    6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="New Message" /> },
+    7: { title: "Events",         description: "Shared with all students in the app",                    actions: <BtnMain label="New Event" /> },
+    8: { title: "Resources",      description: "Links, documents, and videos available to all students", actions: <BtnMain label="Add Resource" /> },
+    9: { title: "Settings",       description: "",                                                        actions: null },
+  };
+}
 
 // ─── Nav icons ────────────────────────────────────────────────────────────────
 const icons: Record<string, ReactElement> = {
@@ -227,8 +234,8 @@ function Sidebar({ active, onSelect }: { active: NavId; onSelect: (id: NavId) =>
 }
 
 // ─── Top bar ──────────────────────────────────────────────────────────────────
-function TopBar({ page }: { page: NavId }) {
-  const cfg = PAGE_CONFIGS[page];
+function TopBar({ page, configs }: { page: NavId; configs: Record<NavId, PageConfig> }) {
+  const cfg = configs[page];
   return (
     <div style={{ height: TOPBAR_H, flexShrink: 0, background: "#fff", borderBottom: BORDER, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -372,39 +379,95 @@ function StudentLeaderboard() {
 }
 
 // ── Engagement graph ──────────────────────────────────────────────────────────
-function EngagementGraph() {
-  const W = 400, H = 90;
-  const data = WEEKLY_ENGAGEMENT;
-  const scores = data.map(d => d.score);
-  const min = Math.min(...scores), max = Math.max(...scores);
-  const pad = { t: 8, b: 8, l: 4, r: 4 };
-  const xStep = (W - pad.l - pad.r) / (data.length - 1);
-  const yRange = H - pad.t - pad.b;
-  const pts = data.map((d, i) => ({
-    x: pad.l + i * xStep,
-    y: pad.t + yRange * (1 - (d.score - min) / (max - min)),
-  }));
-  const line = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  const area = `${line} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
+type GraphMetric = "engagement" | "completion";
+const METRIC_LABELS: Record<GraphMetric, string> = {
+  engagement: "Student Engagement",
+  completion:  "Activity Completion",
+};
+
+function EngagementGraph({ view }: { view: ViewTab }) {
+  const [metric, setMetric] = useState<GraphMetric>("engagement");
+  const [open,   setOpen]   = useState(false);
+
+  const vk   = VIEW_KEY[view];
+  const data = metric === "engagement" ? ENGAGEMENT_DATA[vk] : COMPLETION_DATA[vk];
+  const n    = data.length;
+
+  // SVG coordinate system
+  const VW = 560, VH = 140;
+  const pL = 36, pR = 12, pT = 10, pB = 28;       // padding
+  const plotX = pL, plotY = pT;
+  const plotW = VW - pL - pR, plotH = VH - pT - pB;
+
+  const xOf = (i: number) => plotX + (n > 1 ? i * plotW / (n - 1) : plotW / 2);
+  const yOf = (v: number) => plotY + plotH * (1 - v / 100);
+
+  const pts  = data.map((d, i) => ({ x: xOf(i), y: yOf(d.value) }));
+  const lineD = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const areaD = `${lineD} L${pts[pts.length-1].x.toFixed(1)},${(plotY+plotH).toFixed(1)} L${pts[0].x.toFixed(1)},${(plotY+plotH).toFixed(1)} Z`;
+
+  const gradId = metric === "engagement" ? "engGrad" : "cmpGrad";
+  const lineColor = "#3E4FD3";
+
+  const yTicks = [0, 25, 50, 75, 100];
 
   return (
     <Card>
       <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, border: BORDER, borderRadius: 8, padding: "5px 10px", background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#121216", fontFamily: "var(--font-inter)" }}>
-          Student Engagement
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round"><path d="M2 4l4 4 4-4"/></svg>
-        </button>
+        {/* Metric dropdown */}
+        <div style={{ position: "relative" }} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+          <button
+            onClick={() => setOpen(o => !o)}
+            style={{ display: "flex", alignItems: "center", gap: 6, border: BORDER, borderRadius: 8, padding: "5px 10px", background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#121216", fontFamily: "var(--font-inter)" }}
+          >
+            {METRIC_LABELS[metric]}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M2 4l4 4 4-4"/>
+            </svg>
+          </button>
+          {open && (
+            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 20, background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", overflow: "hidden", minWidth: 180 }}>
+              {(Object.keys(METRIC_LABELS) as GraphMetric[]).map(m => (
+                <button
+                  key={m}
+                  onClick={() => { setMetric(m); setOpen(false); }}
+                  style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", border: "none", background: m === metric ? "#F8F8FA" : "#fff", color: "#121216", fontSize: 13, fontWeight: m === metric ? 500 : 400, fontFamily: "var(--font-inter)", cursor: "pointer" }}
+                >
+                  {METRIC_LABELS[m]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <div style={{ paddingInline: 8, paddingBottom: 10 }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block" }}>
+      <div style={{ paddingInline: 16, paddingBottom: 14 }}>
+        <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: "100%", display: "block" }}>
           <defs>
-            <linearGradient id="engGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3E4FD3" stopOpacity="0.15"/>
-              <stop offset="100%" stopColor="#3E4FD3" stopOpacity="0"/>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={lineColor} stopOpacity="0.15"/>
+              <stop offset="100%" stopColor={lineColor} stopOpacity="0"/>
             </linearGradient>
           </defs>
-          <path d={area} fill="url(#engGrad)"/>
-          <path d={line} fill="none" stroke="#3E4FD3" strokeWidth="1.5"/>
+
+          {/* Y-axis gridlines + labels */}
+          {yTicks.map(v => {
+            const y = yOf(v);
+            return (
+              <g key={v}>
+                <line x1={plotX} y1={y} x2={plotX + plotW} y2={y} stroke="#E5E5EA" strokeWidth="0.8" strokeDasharray={v === 0 ? "none" : "3 3"}/>
+                <text x={plotX - 6} y={y} textAnchor="end" dominantBaseline="middle" fontSize="9" fill="#8E8E97" fontFamily="var(--font-inter)">{v}%</text>
+              </g>
+            );
+          })}
+
+          {/* Area + line */}
+          <path d={areaD} fill={`url(#${gradId})`}/>
+          <path d={lineD} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round"/>
+
+          {/* X-axis labels */}
+          {data.map((d, i) => (
+            <text key={i} x={xOf(i)} y={plotY + plotH + 16} textAnchor="middle" fontSize="9" fill="#8E8E97" fontFamily="var(--font-inter)">{d.label}</text>
+          ))}
         </svg>
       </div>
     </Card>
@@ -579,21 +642,24 @@ function MyEvents({ onNavigate }: { onNavigate: (page: NavId) => void }) {
 }
 
 // ── Dashboard root ────────────────────────────────────────────────────────────
-function DashboardContent({ onNavigate }: { onNavigate: (page: NavId) => void }) {
+function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (page: NavId) => void }) {
   return (
-    <div>
-      <p style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "#121216" }}>Your students</p>
-      <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
-        {/* Left — leaderboard */}
-        <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <StudentLeaderboard />
-        </div>
-        {/* Right — stacked cards */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-          <EngagementGraph />
-          <MyAssignedActivities />
-          <MyIntake />
-          <MyEvents onNavigate={onNavigate} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Engagement graph — full width */}
+      <EngagementGraph view={view} />
+
+      {/* Your students bento */}
+      <div>
+        <p style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "#121216" }}>Your students</p>
+        <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
+          <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
+            <StudentLeaderboard />
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+            <MyAssignedActivities />
+            <MyIntake />
+            <MyEvents onNavigate={onNavigate} />
+          </div>
         </div>
       </div>
     </div>
@@ -601,10 +667,10 @@ function DashboardContent({ onNavigate }: { onNavigate: (page: NavId) => void })
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, onNavigate }: { page: NavId; onNavigate: (page: NavId) => void }) {
+function Content({ page, view, onNavigate }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void }) {
   return (
     <div style={{ flex: 1, overflowY: "auto", background: "#fff", padding: 24 }}>
-      {page === 1 && <DashboardContent onNavigate={onNavigate} />}
+      {page === 1 && <DashboardContent view={view} onNavigate={onNavigate} />}
       {page !== 1 && (
         <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
       )}
@@ -615,13 +681,15 @@ function Content({ page, onNavigate }: { page: NavId; onNavigate: (page: NavId) 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   const [activeNav, setActiveNav] = useState<NavId>(1);
+  const [dashView,  setDashView]  = useState<ViewTab>("This Month");
+  const pageConfigs = makePageConfigs(dashView, setDashView);
 
   return (
     <div className={inter.variable} style={{ width: "100vw", height: "100vh", overflow: "hidden", display: "flex", fontFamily: "var(--font-inter)", userSelect: "none", WebkitUserSelect: "none" }}>
       <Sidebar active={activeNav} onSelect={setActiveNav} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TopBar page={activeNav} />
-        <Content page={activeNav} onNavigate={setActiveNav} />
+        <TopBar page={activeNav} configs={pageConfigs} />
+        <Content page={activeNav} view={dashView} onNavigate={setActiveNav} />
       </div>
     </div>
   );
