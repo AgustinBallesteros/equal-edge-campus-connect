@@ -200,7 +200,7 @@ function TopBar() {
         borderBottom: BORDER,
         display: "flex",
         alignItems: "center",
-        paddingInline: 24,
+        padding: "12px 24px",
       }}
     >
       {/* ── Drop top bar content here ── */}
