@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, type ReactElement } from "react";
-import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, type GraphViewKey } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, type GraphViewKey } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -1206,13 +1206,344 @@ function DashboardContent({ view, onNavigate, toolsVisible }: { view: ViewTab; o
   );
 }
 
+// ─── Roster page ─────────────────────────────────────────────────────────────
+
+type RosterFilter = "All" | "Not Invited" | "Invited" | "Activated";
+const ROSTER_FILTERS: RosterFilter[] = ["All", "Not Invited", "Invited", "Activated"];
+
+function emailOf(name: string): string {
+  const p = name.trim().split(/\s+/);
+  return `${p[0][0].toLowerCase()}.${p[p.length - 1].toLowerCase()}@kent.edu`;
+}
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { bg: string; fg: string }> = {
+    "Activated":   { bg: "#EBFAF2", fg: "#22A062" },
+    "Invited":     { bg: "#FEF9E6", fg: "#C28F11" },
+    "Not Invited": { bg: "#F2F2F5", fg: "#8E8E97" },
+  };
+  const s = map[status] ?? map["Not Invited"];
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      width: 80, height: 24, borderRadius: 6, flexShrink: 0,
+      background: s.bg, color: s.fg, fontSize: 11, fontWeight: 500,
+    }}>
+      {status}
+    </span>
+  );
+}
+
+const ROSTER_COL = "36px minmax(0,1.2fr) minmax(0,1.4fr) 92px 96px 100px 96px 64px 76px minmax(0,1fr) 64px 44px";
+
+const ROSTER_HEADERS = [
+  { label: "",                    center: false },
+  { label: "Name ↑",             center: false },
+  { label: "Email",              center: false },
+  { label: "Status",             center: false },
+  { label: "Date Invited",       center: false },
+  { label: "Date Activated",     center: false },
+  { label: "Last Active",        center: false },
+  { label: "Assigned Lessons",   center: true  },
+  { label: "Assigned Activities",center: true  },
+  { label: "Staff Member",       center: false },
+  { label: "Engagement",         center: true  },
+  { label: "",                   center: false },
+];
+
+function RosterPage() {
+  const [filter,   setFilter]   = useState<RosterFilter>("All");
+  const [search,   setSearch]   = useState("");
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [openMenu, setOpenMenu] = useState<number | null>(null);
+
+  // Close action menu on outside click
+  useEffect(() => {
+    if (openMenu === null) return;
+    const close = () => setOpenMenu(null);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [openMenu]);
+
+  const counts: Record<RosterFilter, number> = {
+    "All":         ALUMNI.length,
+    "Not Invited": ALUMNI.filter(a => a.status === "Not Invited").length,
+    "Invited":     ALUMNI.filter(a => a.status === "Invited").length,
+    "Activated":   ALUMNI.filter(a => a.status === "Activated").length,
+  };
+
+  const rows = ALUMNI
+    .filter(a => {
+      if (filter !== "All" && a.status !== filter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const staffName = STAFF.find(s => s.id === a.staffMemberId)?.name.toLowerCase() ?? "";
+        return a.name.toLowerCase().includes(q) || staffName.includes(q);
+      }
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const allChecked  = rows.length > 0 && rows.every(a => selected.has(a.id));
+  const someChecked = rows.some(a => selected.has(a.id)) && !allChecked;
+
+  function toggleAll() {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (allChecked) rows.forEach(a => next.delete(a.id));
+      else            rows.forEach(a => next.add(a.id));
+      return next;
+    });
+  }
+
+  function toggleOne(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  const cellTxt: React.CSSProperties = {
+    paddingInline: 8, fontSize: 12, color: "#121216",
+    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+  };
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+
+      {/* ── Filter bar ── */}
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: BORDER }}>
+
+        {/* Tabs — same segmented style as leaderboard */}
+        <div style={{ display: "flex", alignItems: "center", height: 32, background: "#F8F8FA", borderRadius: 8, padding: 2, border: BORDER }}>
+          {ROSTER_FILTERS.map(f => {
+            const active = filter === f;
+            return (
+              <button key={f} onClick={() => setFilter(f)} style={{
+                height: 28, paddingInline: 10, borderRadius: 6, border: "none",
+                background: active ? "#fff" : "transparent",
+                color: active ? "#121216" : "#8E8E97",
+                fontSize: 12, fontWeight: active ? 500 : 400,
+                fontFamily: "var(--font-inter)", cursor: "pointer",
+                boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+                whiteSpace: "nowrap",
+              }}>
+                {f} ({counts[f]})
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search */}
+        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <svg style={{ position: "absolute", left: 10, pointerEvents: "none" }} width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="5.5" cy="5.5" r="4"/><path d="M9 9l2.5 2.5"/>
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by name or staff member…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              height: 32, paddingInline: "30px 12px", borderRadius: 8, border: BORDER,
+              fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)",
+              outline: "none", width: 268, background: "#fff",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* ── Table ── */}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+
+        {/* Column headers — sticky */}
+        <div style={{
+          flexShrink: 0, display: "grid", gridTemplateColumns: ROSTER_COL,
+          padding: "0 20px", borderBottom: BORDER, background: "#FAFAFA",
+        }}>
+          {/* Header checkbox */}
+          <div style={{ height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <input
+              type="checkbox"
+              checked={allChecked}
+              ref={el => { if (el) el.indeterminate = someChecked; }}
+              onChange={toggleAll}
+              style={{ cursor: "pointer", accentColor: "#3E4FD3", width: 14, height: 14 }}
+            />
+          </div>
+          {ROSTER_HEADERS.slice(1).map(({ label, center }, i) => (
+            <div key={i} style={{
+              height: 40, display: "flex", alignItems: "center", paddingInline: 8,
+              fontSize: 11, fontWeight: 500, color: "#8E8E97",
+              justifyContent: center ? "center" : "flex-start",
+            }}>
+              {label}
+            </div>
+          ))}
+        </div>
+
+        {/* Scrollable rows */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {rows.length === 0 && (
+            <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "#C5C5CC" }}>
+              No students match your search.
+            </div>
+          )}
+          {rows.map((a, i) => {
+            const staff      = STAFF.find(s => s.id === a.staffMemberId);
+            const isSelected = selected.has(a.id);
+            const menuOpen   = openMenu === a.id;
+
+            return (
+              <div key={a.id} style={{
+                display: "grid", gridTemplateColumns: ROSTER_COL,
+                padding: "0 20px", alignItems: "center",
+                borderBottom: i < rows.length - 1 ? BORDER : "none",
+                background: isSelected ? "#F5F6FE" : "#fff",
+                transition: `background ${MS.dFast} ${MS.eOut}`,
+              }}>
+
+                {/* Checkbox */}
+                <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleOne(a.id)}
+                    style={{ cursor: "pointer", accentColor: "#3E4FD3", width: 14, height: 14 }} />
+                </div>
+
+                {/* Name */}
+                <div style={{ ...cellTxt, fontSize: 13, fontWeight: 500 }}>{a.name}</div>
+
+                {/* Email */}
+                <div style={{ ...cellTxt, color: "#8E8E97" }}>{emailOf(a.name)}</div>
+
+                {/* Status */}
+                <div style={{ paddingInline: 8 }}><StatusBadge status={a.status} /></div>
+
+                {/* Date Invited */}
+                <div style={cellTxt}>{fmtDate(a.dateInvited)}</div>
+
+                {/* Date Activated */}
+                <div style={cellTxt}>{fmtDate(a.dateActivated)}</div>
+
+                {/* Last Active — falls back to dateActivated */}
+                <div style={cellTxt}>{fmtDate(a.dateLastActive ?? a.dateActivated)}</div>
+
+                {/* Assigned Lessons */}
+                <div style={{ ...cellTxt, textAlign: "center" }}>{a.assignedLessonIds.length || "—"}</div>
+
+                {/* Assigned Activities */}
+                <div style={{ ...cellTxt, textAlign: "center" }}>{a.assignedActivityIds.length || "—"}</div>
+
+                {/* Staff Member */}
+                <div style={cellTxt}>{staff?.name ?? "—"}</div>
+
+                {/* Engagement */}
+                <div style={{ paddingInline: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {a.engagementScore > 0 ? (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      width: 32, height: 20, borderRadius: 4,
+                      background: scorePill(a.engagementScore).bg,
+                      color: scorePill(a.engagementScore).text,
+                      fontSize: 10, fontWeight: 600,
+                    }}>{a.engagementScore}</span>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "#C5C5CC" }}>—</span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div style={{ paddingInline: 4, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                  <button
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={e => { e.stopPropagation(); setOpenMenu(menuOpen ? null : a.id); }}
+                    style={{
+                      width: 28, height: 28, borderRadius: 6, border: BORDER,
+                      background: menuOpen ? "#F8F8FA" : "#fff",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="3" height="13" viewBox="0 0 3 13" fill="#8E8E97">
+                      <circle cx="1.5" cy="1.5" r="1.5"/>
+                      <circle cx="1.5" cy="6.5" r="1.5"/>
+                      <circle cx="1.5" cy="11.5" r="1.5"/>
+                    </svg>
+                  </button>
+
+                  <PopoverTransition show={menuOpen} style={{ position: "absolute", right: 0, top: "calc(100% + 2px)", zIndex: 50 }}>
+                    <div
+                      onMouseDown={e => e.stopPropagation()}
+                      style={{ background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 180 }}
+                    >
+                      {[
+                        { label: "Invite Student",      color: "#121216", enabled: true },
+                        { label: "Resend Invitation",   color: a.status === "Invited" ? "#121216" : "#C5C5CC", enabled: a.status === "Invited" },
+                        { label: "Remove Student",      color: "#C72727", enabled: true },
+                      ].map(({ label, color, enabled }) => (
+                        <button key={label} disabled={!enabled} style={{
+                          display: "block", width: "100%", textAlign: "left",
+                          padding: "9px 14px", border: "none", background: "#fff",
+                          fontSize: 13, color, fontFamily: "var(--font-inter)",
+                          cursor: enabled ? "pointer" : "default",
+                        }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverTransition>
+                </div>
+
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{
+          flexShrink: 0, borderTop: BORDER,
+          padding: "10px 20px", display: "flex", alignItems: "center", gap: 6,
+          fontSize: 12, color: "#8E8E97",
+        }}>
+          <span style={{ fontWeight: 500, color: "#121216" }}>{ALUMNI.length}</span>
+          <span>total students</span>
+          <span>·</span>
+          <span style={{ fontWeight: 500, color: "#22A062" }}>{counts.Activated}</span>
+          <span>activated</span>
+          <span>·</span>
+          <span style={{ fontWeight: 500, color: "#C28F11" }}>{counts.Invited}</span>
+          <span>invited</span>
+          <span>·</span>
+          <span style={{ fontWeight: 500 }}>{counts["Not Invited"]}</span>
+          <span>not invited</span>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ─── Content (page router) ────────────────────────────────────────────────────
 function Content({ page, view, onNavigate, toolsVisible }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible }) {
   return (
-    <div style={{ flex: 1, overflowY: "auto", background: "#fff", padding: 24 }}>
-      {page === 1 && <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} />}
-      {page !== 1 && (
-        <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff" }}>
+      {page === 1 && (
+        <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+          <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} />
+        </div>
+      )}
+      {page === 2 && <RosterPage />}
+      {page !== 1 && page !== 2 && (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
+        </div>
       )}
     </div>
   );
