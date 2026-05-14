@@ -277,7 +277,7 @@ const LEADER_TABS: LeaderTab[] = ["All", "Needs Attention", "Rising Stars"];
 
 const activated = ALUMNI.filter(a => a.status === "Activated").sort((a, b) => b.engagementScore - a.engagementScore);
 
-function StudentLeaderboard() {
+function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void }) {
   const [tab, setTab] = useState<LeaderTab>("All");
 
   const rows = tab === "All"
@@ -373,6 +373,14 @@ function StudentLeaderboard() {
         {rows.length === 0 && (
           <div style={{ padding: 24, textAlign: "center", fontSize: 13, color: "#ccc" }}>No students match this filter.</div>
         )}
+      </div>
+      <div style={{ padding: "10px 16px 14px", borderTop: BORDER }}>
+        <button
+          onClick={() => onNavigate(2)}
+          style={{ background: "none", border: "none", fontSize: 12, color: "#3E4FD3", cursor: "pointer", fontFamily: "var(--font-inter)", padding: 0 }}
+        >
+          View all students →
+        </button>
       </div>
     </Card>
   );
@@ -648,7 +656,7 @@ function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (pa
       <p style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "#121216" }}>Your students</p>
       <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
         <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <StudentLeaderboard />
+          <StudentLeaderboard onNavigate={onNavigate} />
         </div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           <EngagementGraph view={view} />
