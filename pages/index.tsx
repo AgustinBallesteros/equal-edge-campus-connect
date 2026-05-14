@@ -843,7 +843,7 @@ function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (pa
       <div>
         <SectionHeader title="Your students" />
         <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
-          <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: "0 0 50%", minWidth: 0, display: "flex", flexDirection: "column" }}>
             <StudentLeaderboard onNavigate={onNavigate} />
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
