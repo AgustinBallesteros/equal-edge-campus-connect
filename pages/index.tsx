@@ -1241,7 +1241,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // Column template — tighter date cols, more room for name/email/staff
-const ROSTER_COL = "36px minmax(0,1.3fr) minmax(0,1.5fr) 92px 86px 94px 86px 68px 72px minmax(0,1.1fr) 68px 44px";
+const ROSTER_COL = "36px minmax(0,0.9fr) minmax(0,1fr) 88px 96px 108px 90px 118px 130px minmax(0,0.9fr) 80px 44px";
 
 type SortKey = "name" | "status" | "dateInvited" | "dateActivated" | "dateLastActive" | "lessons" | "activities" | "staff" | "engagement";
 type SortDir = "asc" | "desc";
@@ -1436,6 +1436,7 @@ function RosterPage() {
                 justifyContent: center ? "center" : "flex-start",
                 cursor: sk ? "pointer" : "default",
                 userSelect: "none",
+                whiteSpace: "nowrap", overflow: "hidden",
               }}
             >
               {label}
