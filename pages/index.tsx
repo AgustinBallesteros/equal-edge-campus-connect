@@ -644,22 +644,17 @@ function MyEvents({ onNavigate }: { onNavigate: (page: NavId) => void }) {
 // ── Dashboard root ────────────────────────────────────────────────────────────
 function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (page: NavId) => void }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {/* Engagement graph — full width */}
-      <EngagementGraph view={view} />
-
-      {/* Your students bento */}
-      <div>
-        <p style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "#121216" }}>Your students</p>
-        <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
-          <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
-            <StudentLeaderboard />
-          </div>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-            <MyAssignedActivities />
-            <MyIntake />
-            <MyEvents onNavigate={onNavigate} />
-          </div>
+    <div>
+      <p style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "#121216" }}>Your students</p>
+      <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
+        <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <StudentLeaderboard />
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+          <EngagementGraph view={view} />
+          <MyAssignedActivities />
+          <MyIntake />
+          <MyEvents onNavigate={onNavigate} />
         </div>
       </div>
     </div>
