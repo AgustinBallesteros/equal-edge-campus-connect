@@ -668,7 +668,7 @@ function ProgramSnapshot() {
       {/* Top row — 3 cards × 180px */}
       <div style={{ display: "flex", gap: 16 }}>
         {[1, 2, 3].map(n => (
-          <Card key={n} style={{ flex: 1, height: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Card key={n} style={{ flex: 1, height: 192, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
           </Card>
         ))}
@@ -676,7 +676,7 @@ function ProgramSnapshot() {
       {/* Bottom row — 4 cards × 100px */}
       <div style={{ display: "flex", gap: 16 }}>
         {[4, 5, 6, 7].map(n => (
-          <Card key={n} style={{ flex: 1, height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Card key={n} style={{ flex: 1, height: 128, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
           </Card>
         ))}
