@@ -86,6 +86,246 @@ export const ACTIVITIES: Activity[] = [
   { id: 15, title: "Schedule Advising Appointment",        description: "Book a meeting with your academic advisor and prepare three questions in advance.",                          dueDate: "2026-03-01" },
 ];
 
+// ─── Scripts ─────────────────────────────────────────────────────────────────
+
+export type ScriptCategory =
+  | "Accommodation Request"
+  | "Follow-Up / Escalation"
+  | "Emailing a Professor"
+  | "Advisor Communication"
+  | "Peer Communication";
+
+export const SCRIPT_CATEGORY_COLOR: Record<ScriptCategory, string> = {
+  "Accommodation Request":  "#3B82F6", // blue
+  "Follow-Up / Escalation": "#F59E0B", // yellow
+  "Emailing a Professor":   "#10B981", // green
+  "Advisor Communication":  "#8B5CF6", // purple
+  "Peer Communication":     "#EC4899", // pink
+};
+
+export type Script = {
+  id:       number;
+  category: ScriptCategory;
+  title:    string;
+  text:     string;
+};
+
+export const SCRIPTS: Script[] = [
+  {
+    id: 1,
+    category: "Accommodation Request",
+    title: "Accommodation Request — First Ask",
+    text: `Subject: Accommodation Request — [Your Name], [Course Name]
+
+Dear Professor [Last Name],
+
+My name is [Your Name] and I am enrolled in your [Course Name] course (Section [#]). I am registered with the Disability Services Office and have been approved for the following accommodations: [list accommodations].
+
+I wanted to reach out early in the semester to introduce myself and discuss how we can best implement these accommodations in your course. I have attached my official accommodation letter for your reference.
+
+Please let me know if you have any questions or if there is a time we could meet to discuss further.
+
+Thank you for your support.
+
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 2,
+    category: "Accommodation Request",
+    title: "Accommodation Request — New Semester",
+    text: `Subject: Accommodation Renewal — [Your Name], [Course Name], [Semester]
+
+Dear Professor [Last Name],
+
+I hope you are doing well. I am writing to let you know that I am once again enrolled in one of your courses this semester: [Course Name] (Section [#]).
+
+I continue to be registered with the Disability Services Office and my approved accommodations remain the same: [list accommodations]. Please find my updated accommodation letter attached.
+
+I appreciate your continued support. Please don't hesitate to reach out if you have any questions.
+
+Best regards,
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 3,
+    category: "Accommodation Request",
+    title: "Requesting Extended Time on an Exam",
+    text: `Subject: Extended Time Accommodation — [Exam Name], [Course Name]
+
+Dear Professor [Last Name],
+
+I am writing to confirm the use of my extended time accommodation for the upcoming [Exam Name] on [Date]. As noted in my accommodation letter, I am approved for [1.5x / 2x] extended time and will be completing the exam at the [Testing Center Name].
+
+I plan to schedule my exam slot for [proposed time/date]. I wanted to ensure we are aligned before I finalize the booking.
+
+Please let me know if there is anything you need from me in advance, such as a copy of the exam or specific instructions for the testing center.
+
+Thank you,
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 4,
+    category: "Follow-Up / Escalation",
+    title: "Following Up After No Response",
+    text: `Subject: Follow-Up: [Original Subject Line]
+
+Dear Professor [Last Name],
+
+I hope this message finds you well. I am following up on an email I sent on [Original Date] regarding [brief topic — e.g., my accommodation request / a question about the assignment].
+
+I understand you are busy and I want to be respectful of your time. I wanted to make sure my previous message didn't get lost. Please let me know if you need any additional information from me.
+
+I am happy to meet during your office hours or at another time that works for you.
+
+Thank you,
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 5,
+    category: "Follow-Up / Escalation",
+    title: "Escalating an Unresolved Accommodation",
+    text: `Subject: Unresolved Accommodation — Request for Assistance
+
+Dear [Disability Services Coordinator Name],
+
+I am reaching out because I have been unable to resolve an accommodation issue directly with my professor for [Course Name].
+
+I initially sent my accommodation letter on [Date] and followed up on [Date], but I have not received a response. My approved accommodations include [list], and [upcoming exam/deadline] is on [Date].
+
+I would appreciate any guidance or support you can provide in ensuring my accommodations are implemented in time.
+
+Thank you for your help.
+
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 6,
+    category: "Follow-Up / Escalation",
+    title: "Following Up on a Grade Dispute",
+    text: `Subject: Follow-Up: Grade Review Request — [Assignment Name]
+
+Dear Professor [Last Name],
+
+I am following up on my grade review request for [Assignment Name], which I submitted on [Date]. I have not yet received a response and wanted to check in on the status.
+
+To summarize my concern: I believe there may have been an error in the grading of [specific section/question]. I am happy to discuss this further during office hours or via email.
+
+I appreciate your time and look forward to your response.
+
+Best,
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 7,
+    category: "Emailing a Professor",
+    title: "Introducing Yourself to a Professor",
+    text: `Subject: Introduction — [Your Name], [Course Name]
+
+Dear Professor [Last Name],
+
+My name is [Your Name] and I am enrolled in your [Course Name] course this semester (Section [#], [Days/Time]). I wanted to take a moment to introduce myself.
+
+I am a [year] student majoring in [Major]. I am particularly interested in this course because [brief reason]. I am looking forward to learning from you this semester.
+
+If there is anything I should know about your expectations or the course before we get started, I would welcome the chance to hear it.
+
+Thank you for your time.
+
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 8,
+    category: "Emailing a Professor",
+    title: "Requesting a Meeting with a Professor",
+    text: `Subject: Office Hours / Meeting Request — [Your Name], [Course Name]
+
+Dear Professor [Last Name],
+
+I hope you are doing well. I am a student in your [Course Name] course and I would like to schedule a time to meet with you to discuss [reason — e.g., the upcoming assignment / my progress in the course / a concept I am struggling with].
+
+I am available [list 2–3 availability windows], but I am happy to work around your schedule. Please let me know what works best for you.
+
+Thank you for your time and I look forward to speaking with you.
+
+Best regards,
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 9,
+    category: "Emailing a Professor",
+    title: "Asking for Feedback on an Assignment",
+    text: `Subject: Feedback Request — [Assignment Name], [Course Name]
+
+Dear Professor [Last Name],
+
+Thank you for returning our graded [Assignment Name]. I reviewed your comments and I want to make sure I understand how to improve for future submissions.
+
+Specifically, I had a question about [brief description of the section or feedback]. Could you help me understand what a stronger response would have looked like?
+
+I am happy to visit during office hours if that would be easier. Thank you in advance for your time.
+
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 10,
+    category: "Advisor Communication",
+    title: "Scheduling an Advising Appointment",
+    text: `Subject: Advising Appointment Request — [Your Name], [Major], [Year]
+
+Dear [Advisor Name],
+
+My name is [Your Name] and I am a [year] student majoring in [Major] (Student ID: [#]). I would like to schedule an advising appointment to discuss [reason — e.g., my course plan for next semester / my four-year plan / a potential change of major].
+
+I am available [list 2–3 availability windows] and I am flexible if none of those times work. Please let me know how to best book a time with you.
+
+Thank you,
+[Your Name]
+[Phone Number] · [Email Address]`,
+  },
+  {
+    id: 11,
+    category: "Advisor Communication",
+    title: "Checking In on Degree Progress",
+    text: `Subject: Degree Progress Check-In — [Your Name]
+
+Dear [Advisor Name],
+
+I hope you are well. I am writing to request a brief check-in regarding my degree progress. I want to make sure I am on track to graduate in [expected graduation semester] and that I haven't missed any requirements.
+
+I have been reviewing my degree audit in [system name] and have a few questions about [specific area — e.g., elective credits / prerequisites for my major / transfer credit evaluations].
+
+Would you have availability for a quick meeting or call this week or next? I am available [list availability].
+
+Thank you for your continued guidance.
+
+[Your Name]
+[Student ID] · [Email Address]`,
+  },
+  {
+    id: 12,
+    category: "Peer Communication",
+    title: "Asking a Classmate to Join a Study Group",
+    text: `Hi [Classmate's Name],
+
+I'm [Your Name] from [Course Name]. I've been working on putting together a small study group for the upcoming [exam / project] and wanted to see if you'd be interested in joining.
+
+We're planning to meet [day/time] at [location / online via Zoom] for about [duration]. The goal is to go over [topic areas] together and quiz each other on the material.
+
+Let me know if this sounds good or if you'd like to suggest a different time. Either way, good luck with the class!
+
+[Your Name]`,
+  },
+];
+
 // ─── Staff members ────────────────────────────────────────────────────────────
 
 export type StaffMember = {
