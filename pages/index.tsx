@@ -437,7 +437,7 @@ function AddStudentModal({ show, onClose }: { show: boolean; onClose: () => void
 }
 
 // ─── Remove Student Modal ─────────────────────────────────────────────────────
-function RemoveStudentModal({ studentName, show, onClose }: { studentName: string; show: boolean; onClose: () => void }) {
+function RemoveStudentModal({ studentName, isBulk, show, onClose }: { studentName: string; isBulk?: boolean; show: boolean; onClose: () => void }) {
   const [mounted, setMounted] = useState(show);
   const [vis,     setVis]     = useState(show);
 
@@ -477,9 +477,13 @@ function RemoveStudentModal({ studentName, show, onClose }: { studentName: strin
       >
         {/* Header */}
         <div style={{ padding: "24px 24px 20px" }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Remove Student</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#121216", marginBottom: 6 }}>
+            {isBulk ? "Remove Students" : "Remove Student"}
+          </div>
           <div style={{ fontSize: 13, color: "#8E8E97", lineHeight: 1.55 }}>
-            This will permanently remove <span style={{ color: "#121216", fontWeight: 500 }}>{studentName}</span> from the roster. This cannot be undone.
+            This will permanently remove{" "}
+            <span style={{ color: "#121216", fontWeight: 500 }}>{studentName}</span>
+            {" "}from the roster. This cannot be undone.
           </div>
         </div>
 
@@ -1542,6 +1546,11 @@ function RosterPage() {
     });
   }
 
+  const selectedAlumni = ALUMNI.filter(a => selected.has(a.id));
+  const inviteCount    = selectedAlumni.filter(a => a.status === "Not Invited").length;
+  const resendCount    = selectedAlumni.filter(a => a.status === "Invited").length;
+  const hasSelection   = selected.size > 0;
+
   const cellTxt: React.CSSProperties = {
     paddingInline: 8, fontSize: 12, color: "#121216",
     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -1550,46 +1559,125 @@ function RosterPage() {
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
 
-      {/* ── Filter bar ── */}
-      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: BORDER }}>
+      {/* ── Filter / Bulk action bar ── */}
+      <div style={{
+        flexShrink: 0, position: "relative",
+        borderBottom: hasSelection ? "1px solid #3E4FD3" : BORDER,
+        transition: `border-color ${MS.dFast} ${MS.eOut}`,
+      }}>
 
-        {/* Tabs — same segmented style as leaderboard */}
-        <div style={{ display: "flex", alignItems: "center", height: 32, background: "#F8F8FA", borderRadius: 8, padding: 2, border: BORDER }}>
-          {ROSTER_FILTERS.map(f => {
-            const active = filter === f;
-            return (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                height: 28, paddingInline: 10, borderRadius: 6, border: "none",
-                background: active ? "#fff" : "transparent",
-                color: active ? "#121216" : "#8E8E97",
-                fontSize: 12, fontWeight: active ? 500 : 400,
-                fontFamily: "var(--font-inter)", cursor: "pointer",
-                boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
-                whiteSpace: "nowrap",
-              }}>
-                {f} ({counts[f]})
-              </button>
-            );
-          })}
+        {/* Filter bar — sits in natural flow, gives the wrapper its height */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "10px 20px",
+          opacity: hasSelection ? 0 : 1,
+          pointerEvents: hasSelection ? "none" : "auto",
+          transition: `opacity ${MS.dFast} ${MS.eOut}`,
+        }}>
+          {/* Tabs */}
+          <div style={{ display: "flex", alignItems: "center", height: 32, background: "#F8F8FA", borderRadius: 8, padding: 2, border: BORDER }}>
+            {ROSTER_FILTERS.map(f => {
+              const active = filter === f;
+              return (
+                <button key={f} onClick={() => setFilter(f)} style={{
+                  height: 28, paddingInline: 10, borderRadius: 6, border: "none",
+                  background: active ? "#fff" : "transparent",
+                  color: active ? "#121216" : "#8E8E97",
+                  fontSize: 12, fontWeight: active ? 500 : 400,
+                  fontFamily: "var(--font-inter)", cursor: "pointer",
+                  boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+                  whiteSpace: "nowrap",
+                }}>
+                  {f} ({counts[f]})
+                </button>
+              );
+            })}
+          </div>
+          {/* Search */}
+          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <svg style={{ position: "absolute", left: 10, pointerEvents: "none" }} width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="5.5" cy="5.5" r="4"/><path d="M9 9l2.5 2.5"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by name or staff member…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                height: 32, paddingInline: "30px 12px", borderRadius: 8, border: BORDER,
+                fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)",
+                outline: "none", width: 268, background: "#fff",
+              }}
+            />
+          </div>
         </div>
 
-        {/* Search */}
-        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-          <svg style={{ position: "absolute", left: 10, pointerEvents: "none" }} width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="5.5" cy="5.5" r="4"/><path d="M9 9l2.5 2.5"/>
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by name or staff member…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+        {/* Bulk action bar — overlays on selection */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 20px",
+          background: "#F0F1FD",
+          opacity: hasSelection ? 1 : 0,
+          pointerEvents: hasSelection ? "auto" : "none",
+          transition: `opacity ${MS.dFast} ${MS.eOut}`,
+        }}>
+          {/* Count */}
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#3E4FD3", whiteSpace: "nowrap", marginRight: 2 }}>
+            {selected.size} student{selected.size !== 1 ? "s" : ""} selected
+          </span>
+
+          {/* Invite */}
+          {inviteCount > 0 && (
+            <button style={{
+              height: 32, paddingInline: 12, borderRadius: 7, border: "none",
+              background: "#3E4FD3", color: "#fff",
+              fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)",
+              cursor: "pointer", whiteSpace: "nowrap",
+            }}>
+              Invite {inviteCount} Selected
+            </button>
+          )}
+
+          {/* Resend */}
+          {resendCount > 0 && (
+            <button style={{
+              height: 32, paddingInline: 12, borderRadius: 7, border: "none",
+              background: "#3E4FD3", color: "#fff",
+              fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)",
+              cursor: "pointer", whiteSpace: "nowrap",
+            }}>
+              Resend Invitation to {resendCount} Selected
+            </button>
+          )}
+
+          {/* Remove */}
+          <button
+            onClick={() => setRemoveTarget({ id: -1, name: `${selected.size} student${selected.size !== 1 ? "s" : ""}` } as Alumni)}
             style={{
-              height: 32, paddingInline: "30px 12px", borderRadius: 8, border: BORDER,
-              fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)",
-              outline: "none", width: 268, background: "#fff",
-            }}
-          />
+              height: 32, paddingInline: 12, borderRadius: 7, border: "none",
+              background: "#C72727", color: "#fff",
+              fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)",
+              cursor: "pointer", whiteSpace: "nowrap",
+            }}>
+            Remove {selected.size} Selected
+          </button>
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Clear selection */}
+          <button
+            onClick={() => setSelected(new Set())}
+            style={{
+              height: 32, paddingInline: 10, borderRadius: 7,
+              border: "none", background: "transparent",
+              color: "#3E4FD3", fontSize: 13, fontWeight: 500,
+              fontFamily: "var(--font-inter)", cursor: "pointer", whiteSpace: "nowrap",
+            }}>
+            Clear selection
+          </button>
         </div>
       </div>
 
@@ -1774,8 +1862,9 @@ function RosterPage() {
 
       <RemoveStudentModal
         studentName={removeTarget?.name ?? ""}
+        isBulk={removeTarget?.id === -1}
         show={removeTarget !== null}
-        onClose={() => setRemoveTarget(null)}
+        onClose={() => { setRemoveTarget(null); if (removeTarget?.id === -1) setSelected(new Set()); }}
       />
     </div>
   );
