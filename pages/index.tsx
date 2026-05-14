@@ -455,7 +455,13 @@ const calCells = buildCalendarGrid();
 const eventDays = new Set(CALENDAR_EVENTS.map(e => parseInt(e.date.split("-")[2])));
 
 function MyEvents() {
-  const upcoming = CALENDAR_EVENTS.filter(e => parseInt(e.date.split("-")[2]) >= CAL_TODAY);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  const visibleEvents = selectedDay !== null
+    ? CALENDAR_EVENTS.filter(e => parseInt(e.date.split("-")[2]) === selectedDay)
+    : CALENDAR_EVENTS;
+
+  const panelLabel = selectedDay !== null ? `May ${selectedDay}` : "This month";
 
   return (
     <Card style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -466,12 +472,8 @@ function MyEvents() {
           {/* Mini calendar */}
           <div style={{ flexShrink: 0, width: 196 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>← May 2026</span>
-              <div style={{ display: "flex", gap: 2 }}>
-                {["‹", "›"].map(ch => (
-                  <button key={ch} style={{ width: 22, height: 22, border: BORDER, borderRadius: 5, background: "#fff", cursor: "pointer", fontSize: 12, color: "#8E8E97", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-inter)" }}>{ch}</button>
-                ))}
-              </div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>May 2026</span>
+              <button style={{ width: 22, height: 22, border: BORDER, borderRadius: 5, background: "#fff", cursor: "pointer", fontSize: 12, color: "#8E8E97", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-inter)" }}>›</button>
             </div>
             {/* Day-of-week headers */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 2 }}>
@@ -482,21 +484,26 @@ function MyEvents() {
             {/* Day cells */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: 1 }}>
               {calCells.map((day, i) => {
-                const isToday = day === CAL_TODAY;
-                const hasEvent = day !== null && eventDays.has(day);
+                const isToday   = day === CAL_TODAY;
+                const isSelected = day === selectedDay;
+                const hasEvent  = day !== null && eventDays.has(day);
                 return (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 26 }}>
+                  <div
+                    key={i}
+                    onClick={() => day && setSelectedDay(isSelected ? null : day)}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 26 }}
+                  >
                     <div style={{
                       width: 24, height: 24, borderRadius: "50%",
-                      background: isToday ? "#3E4FD3" : "transparent",
+                      background: isToday || isSelected ? "#3E4FD3" : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       cursor: day ? "pointer" : "default",
                     }}>
-                      <span style={{ fontSize: 11, color: isToday ? "#fff" : day ? "#121216" : "transparent", fontWeight: isToday ? 600 : 400 }}>
+                      <span style={{ fontSize: 11, color: isToday || isSelected ? "#fff" : day ? "#121216" : "transparent", fontWeight: isToday || isSelected ? 600 : 400 }}>
                         {day ?? ""}
                       </span>
                     </div>
-                    {hasEvent && !isToday && (
+                    {hasEvent && !(isToday || isSelected) && (
                       <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3E4FD3", marginTop: 1 }} />
                     )}
                   </div>
@@ -505,11 +512,14 @@ function MyEvents() {
             </div>
           </div>
 
-          {/* Upcoming */}
+          {/* Event list */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: "#121216" }}>Upcoming</p>
+            <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: "#121216" }}>{panelLabel}</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {upcoming.map(evt => {
+              {visibleEvents.length === 0 && (
+                <p style={{ margin: 0, fontSize: 12, color: "#8E8E97" }}>No events this day.</p>
+              )}
+              {visibleEvents.map(evt => {
                 const day = parseInt(evt.date.split("-")[2]);
                 return (
                   <div key={evt.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -525,9 +535,6 @@ function MyEvents() {
                 );
               })}
             </div>
-            <button style={{ marginTop: 12, background: "none", border: "none", fontSize: 12, color: "#3E4FD3", cursor: "pointer", fontFamily: "var(--font-inter)", padding: 0 }}>
-              View all events →
-            </button>
           </div>
 
         </div>
