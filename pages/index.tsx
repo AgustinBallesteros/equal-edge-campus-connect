@@ -686,9 +686,9 @@ const invitedAlumni        = ALUMNI.filter(a => a.status === "Invited");
 const programHealth        = Math.round(activated.reduce((s, a) => s + a.engagementScore, 0) / activated.length);
 const onTrackCount         = activated.filter(a => a.engagementScore > 40).length;
 const activationPct        = Math.round(activated.length / (activated.length + invitedAlumni.length) * 100);
-const totalAssignedLessons = ALUMNI.reduce((s, a) => s + a.assignedLessonIds.length, 0);
+const totalAssignedLessons = activated.reduce((s, a) => s + a.assignedLessonIds.length, 0);
 const lessonsRate          = Math.round(MOCK_LESSONS_COMPLETED / totalAssignedLessons * 100);
-const totalAssignedActs    = ALUMNI.reduce((s, a) => s + a.assignedActivityIds.length, 0);
+const totalAssignedActs    = activated.reduce((s, a) => s + a.assignedActivityIds.length, 0);
 
 // ── Program snapshot ──────────────────────────────────────────────────────────
 function ProgramSnapshot() {

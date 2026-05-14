@@ -193,7 +193,7 @@ export const WEEKLY_ENGAGEMENT: EngagementPoint[] = [
 // ─── Program health delta (mock month-over-month change) ─────────────────────
 
 export const PROGRAM_HEALTH_DELTA            = 6;  // +6 pts since last month
-export const MOCK_LESSONS_COMPLETED          = 92;
+export const MOCK_LESSONS_COMPLETED          = 52; // out of 84 assigned to activated students (~62%)
 export const MOCK_ACTIVITIES_OVERDUE         = 27;
 export const MOCK_ACTIVITIES_RESOLVED_WEEK   = 12;
 
