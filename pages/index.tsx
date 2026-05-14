@@ -112,16 +112,16 @@ type PageConfig = {
   actions: ReactElement | null;
 };
 
-const PAGE_CONFIGS: Record<string, PageConfig> = {
-  Dashboard:  { title: "Dashboard",       description: "Good morning, Dr. Okafor  ·  Spring 2026",                        actions: <DashboardActions /> },
-  Roster:     { title: "Student Roster",  description: "Manage student access and invitation status",                       actions: <><BtnMain label="Add Student" /><BtnSecondary label="Import CSV" /></> },
-  Lessons:    { title: "Learn Library",   description: "Browse and assign lessons to students",                             actions: null },
-  Scripts:    { title: "Script Library",  description: "Manage communication templates available to students",              actions: <BtnMain label="New Script" /> },
-  Activities: { title: "Activities",      description: "Assign follow-up tasks and track student completion",               actions: <BtnMain label="New Activity" /> },
-  Messages:   { title: "Messages",        description: "",                                                                  actions: <BtnMain label="New Message" /> },
-  Events:     { title: "Events",          description: "Shared with all students in the app",                               actions: <BtnMain label="New Event" /> },
-  Resources:  { title: "Resources",       description: "Links, documents, and videos available to all students",            actions: <BtnMain label="Add Resource" /> },
-  Settings:   { title: "Settings",        description: "",                                                                  actions: null },
+const PAGE_CONFIGS: Record<NavId, PageConfig> = {
+  1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",                   actions: <DashboardActions /> },
+  2: { title: "Student Roster", description: "Manage student access and invitation status",                  actions: <><BtnMain label="Add Student" /><BtnSecondary label="Import CSV" /></> },
+  3: { title: "Learn Library",  description: "Browse and assign lessons to students",                        actions: null },
+  4: { title: "Script Library", description: "Manage communication templates available to students",         actions: <BtnMain label="New Script" /> },
+  5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",          actions: <BtnMain label="New Activity" /> },
+  6: { title: "Messages",       description: "",                                                             actions: <BtnMain label="New Message" /> },
+  7: { title: "Events",         description: "Shared with all students in the app",                         actions: <BtnMain label="New Event" /> },
+  8: { title: "Resources",      description: "Links, documents, and videos available to all students",      actions: <BtnMain label="Add Resource" /> },
+  9: { title: "Settings",       description: "",                                                             actions: null },
 };
 
 // ─── Nav icons (16 × 16, currentColor) ───────────────────────────────────────
@@ -202,10 +202,24 @@ function NavItem({ label, active, onClick }: { label: string; active: boolean; o
   );
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-const MAIN_NAV = ["Dashboard", "Roster", "Lessons", "Scripts", "Activities", "Messages", "Events", "Resources"];
+// ─── Nav registry ─────────────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { id: 1, label: "Dashboard"  },
+  { id: 2, label: "Roster"     },
+  { id: 3, label: "Lessons"    },
+  { id: 4, label: "Scripts"    },
+  { id: 5, label: "Activities" },
+  { id: 6, label: "Messages"   },
+  { id: 7, label: "Events"     },
+  { id: 8, label: "Resources"  },
+] as const;
 
-function Sidebar({ active, onSelect }: { active: string; onSelect: (item: string) => void }) {
+const SETTINGS_ITEM = { id: 9, label: "Settings" } as const;
+
+type NavId = typeof NAV_ITEMS[number]["id"] | typeof SETTINGS_ITEM["id"];
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+function Sidebar({ active, onSelect }: { active: NavId; onSelect: (id: NavId) => void }) {
   return (
     <div style={{
       width: SIDEBAR_W, height: "100vh", flexShrink: 0,
@@ -235,21 +249,21 @@ function Sidebar({ active, onSelect }: { active: string; onSelect: (item: string
       {/* Nav */}
       <div style={{ paddingInline: 16, display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", paddingBottom: 16 }}>
         <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {MAIN_NAV.map((item) => (
-            <NavItem key={item} label={item} active={active === item} onClick={() => onSelect(item)} />
+          {NAV_ITEMS.map(({ id, label }) => (
+            <NavItem key={id} label={label} active={active === id} onClick={() => onSelect(id)} />
           ))}
         </nav>
         <div style={{ flex: 1 }} />
         <div style={{ height: 1, background: "#E5E5EA", marginBottom: 8 }} />
-        <NavItem label="Settings" active={active === "Settings"} onClick={() => onSelect("Settings")} />
+        <NavItem label={SETTINGS_ITEM.label} active={active === SETTINGS_ITEM.id} onClick={() => onSelect(SETTINGS_ITEM.id)} />
       </div>
     </div>
   );
 }
 
 // ─── Top bar ──────────────────────────────────────────────────────────────────
-function TopBar({ page }: { page: string }) {
-  const cfg = PAGE_CONFIGS[page] ?? PAGE_CONFIGS.Dashboard;
+function TopBar({ page }: { page: NavId }) {
+  const cfg = PAGE_CONFIGS[page];
   return (
     <div style={{
       height: TOPBAR_H, flexShrink: 0,
@@ -287,7 +301,7 @@ function Content() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [activeNav, setActiveNav] = useState("Dashboard");
+  const [activeNav, setActiveNav] = useState<NavId>(1);
 
   return (
     <div
