@@ -1539,7 +1539,7 @@ function RosterPage() {
                       style={{ background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 180 }}
                     >
                       {[
-                        { label: "Invite Student",      color: a.status === "Activated" ? "#C5C5CC" : "#121216", enabled: a.status !== "Activated" },
+                        { label: "Invite Student",      color: a.status !== "Not Invited" ? "#C5C5CC" : "#121216", enabled: a.status === "Not Invited" },
                         { label: "Resend Invitation",   color: a.status === "Invited" ? "#121216" : "#C5C5CC", enabled: a.status === "Invited" },
                         { label: "Remove Student",      color: "#C72727", enabled: true },
                       ].map(({ label, color, enabled }) => (
