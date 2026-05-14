@@ -812,21 +812,21 @@ function ProgramSnapshot() {
       <div style={{ display: "flex", gap: 16 }}>
 
         {/* Card 4 — Lessons completed */}
-        <StatCard style={{ height: 128 }}>
+        <StatCard>
           <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 6 }}>{MOCK_LESSONS_COMPLETED}</span>
           <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Lessons completed</p>
           <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedLessons} assigned &middot; {lessonsRate}% rate</p>
         </StatCard>
 
         {/* Card 5 — Activities overdue */}
-        <StatCard style={{ height: 128 }}>
+        <StatCard>
           <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#C72727", lineHeight: 1, marginBottom: 6 }}>{MOCK_ACTIVITIES_OVERDUE}</span>
           <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Activities overdue</p>
           <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedActs} total &middot; {MOCK_ACTIVITIES_RESOLVED_WEEK} resolved last week</p>
         </StatCard>
 
         {[6, 7].map(n => (
-          <Card key={n} style={{ flex: 1, height: 128, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Card key={n} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
           </Card>
         ))}
