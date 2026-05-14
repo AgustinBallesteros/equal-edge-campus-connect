@@ -1241,7 +1241,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // Column template — tighter date cols, more room for name/email/staff
-const ROSTER_COL = "36px minmax(0,0.9fr) minmax(0,1fr) 88px 96px 108px 90px 118px 130px minmax(0,0.9fr) 80px 44px";
+const ROSTER_COL = "36px minmax(0,0.7fr) minmax(0,0.8fr) 102px 106px 116px 102px 118px 130px minmax(0,0.9fr) 80px 44px";
 
 type SortKey = "name" | "status" | "dateInvited" | "dateActivated" | "dateLastActive" | "lessons" | "activities" | "staff" | "engagement";
 type SortDir = "asc" | "desc";
@@ -1539,7 +1539,7 @@ function RosterPage() {
                       style={{ background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 180 }}
                     >
                       {[
-                        { label: "Invite Student",      color: "#121216", enabled: true },
+                        { label: "Invite Student",      color: a.status === "Activated" ? "#C5C5CC" : "#121216", enabled: a.status !== "Activated" },
                         { label: "Resend Invitation",   color: a.status === "Invited" ? "#121216" : "#C5C5CC", enabled: a.status === "Invited" },
                         { label: "Remove Student",      color: "#C72727", enabled: true },
                       ].map(({ label, color, enabled }) => (
