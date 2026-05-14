@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, type ReactElement } from "react";
+import { ALUMNI, WEEKLY_ENGAGEMENT, CALENDAR_EVENTS } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -52,7 +53,7 @@ function BtnSecondary({ label }: { label: string }) {
   );
 }
 
-// ─── Dashboard-specific actions ───────────────────────────────────────────────
+// ─── Dashboard — view tab ─────────────────────────────────────────────────────
 const VIEW_TABS = ["This Week", "This Month", "This Semester"] as const;
 type ViewTab = typeof VIEW_TABS[number];
 
@@ -60,7 +61,6 @@ function DashboardActions() {
   const [view, setView] = useState<ViewTab>("This Month");
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      {/* Customize tools dropdown (secondary style + chevron) */}
       <button style={{
         height: 36, paddingInline: 14, borderRadius: 8,
         border: BORDER, background: "#fff", color: "#121216",
@@ -72,30 +72,22 @@ function DashboardActions() {
           <path d="M3 5l4 4 4-4"/>
         </svg>
       </button>
-
-      {/* View tab segmented control */}
       <div style={{
         display: "flex", alignItems: "center",
-        background: "#F8F8FA", borderRadius: 8, padding: 3,
-        border: BORDER,
+        background: "#F8F8FA", borderRadius: 8, padding: 3, border: BORDER,
       }}>
         {VIEW_TABS.map((tab) => {
           const active = view === tab;
           return (
-            <button
-              key={tab}
-              onClick={() => setView(tab)}
-              style={{
-                height: 28, paddingInline: 12, borderRadius: 6, border: "none",
-                background: active ? "#fff" : "transparent",
-                color: active ? "#121216" : "#8E8E97",
-                fontSize: 13, fontWeight: active ? 500 : 400,
-                fontFamily: "var(--font-inter)",
-                cursor: "pointer",
-                boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-                transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
-              }}
-            >
+            <button key={tab} onClick={() => setView(tab)} style={{
+              height: 28, paddingInline: 12, borderRadius: 6, border: "none",
+              background: active ? "#fff" : "transparent",
+              color: active ? "#121216" : "#8E8E97",
+              fontSize: 13, fontWeight: active ? 500 : 400,
+              fontFamily: "var(--font-inter)", cursor: "pointer",
+              boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+              transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+            }}>
               {tab}
             </button>
           );
@@ -106,38 +98,31 @@ function DashboardActions() {
 }
 
 // ─── Page configs ─────────────────────────────────────────────────────────────
-type PageConfig = {
-  title: string;
-  description: string;
-  actions: ReactElement | null;
-};
+type PageConfig = { title: string; description: string; actions: ReactElement | null };
 
 const PAGE_CONFIGS: Record<NavId, PageConfig> = {
-  1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",                   actions: <DashboardActions /> },
-  2: { title: "Student Roster", description: "Manage student access and invitation status",                  actions: <><BtnMain label="Add Student" /><BtnSecondary label="Import CSV" /></> },
-  3: { title: "Learn Library",  description: "Browse and assign lessons to students",                        actions: null },
-  4: { title: "Script Library", description: "Manage communication templates available to students",         actions: <BtnMain label="New Script" /> },
-  5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",          actions: <BtnMain label="New Activity" /> },
-  6: { title: "Messages",       description: "",                                                             actions: <BtnMain label="New Message" /> },
-  7: { title: "Events",         description: "Shared with all students in the app",                         actions: <BtnMain label="New Event" /> },
-  8: { title: "Resources",      description: "Links, documents, and videos available to all students",      actions: <BtnMain label="Add Resource" /> },
-  9: { title: "Settings",       description: "",                                                             actions: null },
+  1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",                  actions: <DashboardActions /> },
+  2: { title: "Student Roster", description: "Manage student access and invitation status",                 actions: <><BtnMain label="Add Student" /><BtnSecondary label="Import CSV" /></> },
+  3: { title: "Learn Library",  description: "Browse and assign lessons to students",                       actions: null },
+  4: { title: "Script Library", description: "Manage communication templates available to students",        actions: <BtnMain label="New Script" /> },
+  5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",         actions: <BtnMain label="New Activity" /> },
+  6: { title: "Messages",       description: "",                                                            actions: <BtnMain label="New Message" /> },
+  7: { title: "Events",         description: "Shared with all students in the app",                        actions: <BtnMain label="New Event" /> },
+  8: { title: "Resources",      description: "Links, documents, and videos available to all students",     actions: <BtnMain label="Add Resource" /> },
+  9: { title: "Settings",       description: "",                                                            actions: null },
 };
 
-// ─── Nav icons (16 × 16, currentColor) ───────────────────────────────────────
+// ─── Nav icons ────────────────────────────────────────────────────────────────
 const icons: Record<string, ReactElement> = {
   Dashboard: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-      <rect x="1" y="1" width="6" height="6" rx="1.5"/>
-      <rect x="9" y="1" width="6" height="6" rx="1.5"/>
-      <rect x="1" y="9" width="6" height="6" rx="1.5"/>
-      <rect x="9" y="9" width="6" height="6" rx="1.5"/>
+      <rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/>
+      <rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/>
     </svg>
   ),
   Roster: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="5" r="3"/>
-      <path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/>
+      <circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/>
     </svg>
   ),
   Lessons: (
@@ -149,8 +134,7 @@ const icons: Record<string, ReactElement> = {
   Scripts: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 1h6l3 3v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/>
-      <path d="M10 1v4h3"/>
-      <path d="M5 8h6M5 11h4"/>
+      <path d="M10 1v4h3"/><path d="M5 8h6M5 11h4"/>
     </svg>
   ),
   Activities: (
@@ -166,8 +150,7 @@ const icons: Record<string, ReactElement> = {
   Events: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/>
-      <path d="M1.5 6.5h13"/>
-      <path d="M5 1.5v2M11 1.5v2"/>
+      <path d="M1.5 6.5h13"/><path d="M5 1.5v2M11 1.5v2"/>
     </svg>
   ),
   Resources: (
@@ -186,23 +169,20 @@ const icons: Record<string, ReactElement> = {
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 function NavItem({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <div
-      onClick={onClick}
-      style={{
-        display: "flex", alignItems: "center", gap: 10,
-        padding: 10, borderRadius: 8, cursor: "pointer",
-        background: active ? NAV_ACTIVE_BG : "transparent",
-        color: active ? NAV_ACTIVE_COLOR : NAV_REST_COLOR,
-        transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
-      }}
-    >
+    <div onClick={onClick} style={{
+      display: "flex", alignItems: "center", gap: 10,
+      padding: 10, borderRadius: 8, cursor: "pointer",
+      background: active ? NAV_ACTIVE_BG : "transparent",
+      color: active ? NAV_ACTIVE_COLOR : NAV_REST_COLOR,
+      transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+    }}>
       {icons[label]}
       <span style={{ fontSize: 14, fontWeight: active ? 600 : 400, lineHeight: 1 }}>{label}</span>
     </div>
   );
 }
 
-// ─── Nav registry ─────────────────────────────────────────────────────────────
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: 1, label: "Dashboard"  },
   { id: 2, label: "Roster"     },
@@ -215,10 +195,8 @@ const NAV_ITEMS = [
 ] as const;
 
 const SETTINGS_ITEM = { id: 9, label: "Settings" } as const;
-
 type NavId = typeof NAV_ITEMS[number]["id"] | typeof SETTINGS_ITEM["id"];
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
 function Sidebar({ active, onSelect }: { active: NavId; onSelect: (id: NavId) => void }) {
   return (
     <div style={{
@@ -227,26 +205,13 @@ function Sidebar({ active, onSelect }: { active: NavId; onSelect: (id: NavId) =>
       display: "flex", flexDirection: "column",
       overflow: "hidden", boxSizing: "border-box",
     }}>
-      {/* Logo row — same height as topbar so separator aligns */}
-      <div style={{
-        height: TOPBAR_H, flexShrink: 0,
-        display: "flex", alignItems: "center",
-        paddingInline: 16, gap: 8,
-      }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-          background: "#3E4FD3",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
+      <div style={{ height: TOPBAR_H, flexShrink: 0, display: "flex", alignItems: "center", paddingInline: 16, gap: 8 }}>
+        <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: "#3E4FD3", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: 10, color: "#fff", fontWeight: 600, letterSpacing: "0.02em" }}>CC</span>
         </div>
         <span style={{ fontSize: 14, fontWeight: 600, color: "#121216", lineHeight: 1 }}>Campus Connect</span>
       </div>
-
-      {/* Separator — flush with topbar bottom border */}
       <div style={{ height: 1, background: "#E5E5EA", marginBottom: 8 }} />
-
-      {/* Nav */}
       <div style={{ paddingInline: 16, display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", paddingBottom: 16 }}>
         <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {NAV_ITEMS.map(({ id, label }) => (
@@ -265,36 +230,329 @@ function Sidebar({ active, onSelect }: { active: NavId; onSelect: (id: NavId) =>
 function TopBar({ page }: { page: NavId }) {
   const cfg = PAGE_CONFIGS[page];
   return (
-    <div style={{
-      height: TOPBAR_H, flexShrink: 0,
-      background: "#fff", borderBottom: BORDER,
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      padding: "12px 24px",
-    }}>
-      {/* Left — title + description */}
+    <div style={{ height: TOPBAR_H, flexShrink: 0, background: "#fff", borderBottom: BORDER, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <span style={{ fontSize: 18, fontWeight: 600, color: "#121216", lineHeight: 1 }}>{cfg.title}</span>
         {cfg.description && (
           <span style={{ fontSize: 14, fontWeight: 400, color: "#8E8E97", lineHeight: 1 }}>{cfg.description}</span>
         )}
       </div>
-
-      {/* Right — actions */}
       {cfg.actions && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {cfg.actions}
-        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{cfg.actions}</div>
       )}
     </div>
   );
 }
 
-// ─── Main content ─────────────────────────────────────────────────────────────
-function Content() {
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+// Avatar helpers
+const AVATAR_PALETTE = ["#3E4FD3","#F59E0B","#10B981","#EF4444","#8B5CF6","#06B6D4","#F97316","#EC4899","#14B8A6","#7C3AED"];
+const avatarColor    = (id: number) => AVATAR_PALETTE[id % AVATAR_PALETTE.length];
+const avatarInitials = (name: string) => { const p = name.trim().split(" "); return (p[0][0] + (p[1]?.[0] ?? "")).toUpperCase(); };
+const scoreColor     = (s: number) => s >= 80 ? "#F59E0B" : s >= 60 ? "#3E4FD3" : s >= 40 ? "#6B7280" : "#EF4444";
+
+// Shared card shell
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{ background: "#fff", border: BORDER, borderRadius: 10, overflow: "hidden", ...style }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Student leaderboard ───────────────────────────────────────────────────────
+type LeaderTab = "All" | "Needs Attention" | "Rising Stars";
+const LEADER_TABS: LeaderTab[] = ["All", "Needs Attention", "Rising Stars"];
+
+const activated = ALUMNI.filter(a => a.status === "Activated").sort((a, b) => b.engagementScore - a.engagementScore);
+
+function StudentLeaderboard() {
+  const [tab, setTab] = useState<LeaderTab>("All");
+
+  const rows = tab === "All"
+    ? activated
+    : tab === "Needs Attention"
+      ? activated.filter(a => a.engagementScore < 60 || a.trend < 0)
+      : activated.filter(a => a.trend >= 10);
+
+  return (
+    <Card style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Header */}
+      <div style={{ padding: "14px 16px 0" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#121216" }}>Student Engagement</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#8E8E97" }}>Ranked by engagement score this month</p>
+          </div>
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: 0 }}>
+            {LEADER_TABS.map((t) => {
+              const active = tab === t;
+              return (
+                <button key={t} onClick={() => setTab(t)} style={{
+                  padding: "5px 10px", border: "none", background: "none",
+                  fontSize: 12, fontWeight: active ? 600 : 400,
+                  color: active ? "#121216" : "#8E8E97",
+                  borderBottom: active ? "2px solid #3E4FD3" : "2px solid transparent",
+                  cursor: "pointer", fontFamily: "var(--font-inter)",
+                  transition: `color ${MS.dFast} ${MS.eOut}`,
+                }}>{t}</button>
+              );
+            })}
+          </div>
+        </div>
+        {/* Column headers */}
+        <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 52px 80px 56px", gap: 8, padding: "0 8px 8px", borderBottom: BORDER }}>
+          {["#", "Student", "Score", "Trend", "Streak"].map((h, i) => (
+            <span key={h} style={{ fontSize: 11, fontWeight: 500, color: "#8E8E97", textAlign: i >= 2 ? "center" : "left" }}>{h}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Rows */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {rows.map((a, i) => {
+          const rank = activated.indexOf(a) + 1;
+          const trendUp = a.trend > 0, trendDown = a.trend < 0;
+          const trendColor = trendUp ? "#10B981" : trendDown ? "#EF4444" : "#8E8E97";
+          const trendArrow = trendUp ? "↑" : trendDown ? "↓" : "→";
+          return (
+            <div key={a.id} style={{
+              display: "grid", gridTemplateColumns: "28px 1fr 52px 80px 56px",
+              gap: 8, padding: "8px 16px",
+              borderBottom: i < rows.length - 1 ? BORDER : "none",
+              alignItems: "center",
+            }}>
+              {/* Rank */}
+              <span style={{ fontSize: 12, color: "#8E8E97", textAlign: "center" }}>
+                {rank === 1
+                  ? <svg width="14" height="14" viewBox="0 0 14 14" fill="#F59E0B"><path d="M7 1l1.5 3.5L12 5l-2.5 2.5.6 3.5L7 9.5 3.9 11l.6-3.5L2 5l3.5-.5L7 1z"/></svg>
+                  : rank}
+              </span>
+              {/* Student */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, background: avatarColor(a.id), display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>{avatarInitials(a.name)}</span>
+                </div>
+                <span style={{ fontSize: 13, color: "#121216", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
+              </div>
+              {/* Score */}
+              <span style={{ fontSize: 13, fontWeight: 600, color: scoreColor(a.engagementScore), textAlign: "center" }}>{a.engagementScore}</span>
+              {/* Trend */}
+              <span style={{ fontSize: 12, color: trendColor, textAlign: "center" }}>
+                {trendArrow} {a.trend > 0 ? `+${a.trend}` : a.trend === 0 ? "—" : a.trend}
+              </span>
+              {/* Streak */}
+              <span style={{ fontSize: 12, color: "#121216", textAlign: "center" }}>
+                {a.streak > 0 ? `🔥 ${a.streak}d` : "—"}
+              </span>
+            </div>
+          );
+        })}
+        {rows.length === 0 && (
+          <div style={{ padding: 24, textAlign: "center", fontSize: 13, color: "#ccc" }}>No students match this filter.</div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ── Engagement graph ──────────────────────────────────────────────────────────
+function EngagementGraph() {
+  const W = 400, H = 90;
+  const data = WEEKLY_ENGAGEMENT;
+  const scores = data.map(d => d.score);
+  const min = Math.min(...scores), max = Math.max(...scores);
+  const pad = { t: 8, b: 8, l: 4, r: 4 };
+  const xStep = (W - pad.l - pad.r) / (data.length - 1);
+  const yRange = H - pad.t - pad.b;
+  const pts = data.map((d, i) => ({
+    x: pad.l + i * xStep,
+    y: pad.t + yRange * (1 - (d.score - min) / (max - min)),
+  }));
+  const line = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const area = `${line} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
+
+  return (
+    <Card>
+      <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button style={{ display: "flex", alignItems: "center", gap: 6, border: BORDER, borderRadius: 8, padding: "5px 10px", background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 500, color: "#121216", fontFamily: "var(--font-inter)" }}>
+          Student Engagement
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round"><path d="M2 4l4 4 4-4"/></svg>
+        </button>
+      </div>
+      <div style={{ paddingInline: 8, paddingBottom: 10 }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block" }}>
+          <defs>
+            <linearGradient id="engGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3E4FD3" stopOpacity="0.15"/>
+              <stop offset="100%" stopColor="#3E4FD3" stopOpacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d={area} fill="url(#engGrad)"/>
+          <path d={line} fill="none" stroke="#3E4FD3" strokeWidth="1.5"/>
+        </svg>
+      </div>
+    </Card>
+  );
+}
+
+// ── My Assigned Activities (placeholder) ─────────────────────────────────────
+function MyAssignedActivities() {
+  return (
+    <Card style={{ padding: "14px 16px" }}>
+      <p style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600, color: "#121216" }}>My Assigned Activities</p>
+      <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 12, color: "#ccc" }}>— coming soon —</span>
+      </div>
+    </Card>
+  );
+}
+
+// ── My Intake (placeholder) ───────────────────────────────────────────────────
+function MyIntake() {
+  return (
+    <Card style={{ padding: "14px 16px" }}>
+      <p style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600, color: "#121216" }}>My Intake</p>
+      <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 12, color: "#ccc" }}>— coming soon —</span>
+      </div>
+    </Card>
+  );
+}
+
+// ── My Events ────────────────────────────────────────────────────────────────
+// May 2026: starts on Friday (col 5, 0-indexed S=0), 31 days
+// May 2026: year=2026, month=4
+const CAL_TODAY = 14, CAL_FIRST_DOW = 5;
+const CAL_DAYS_IN_MONTH = 31;
+const CAL_DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
+function buildCalendarGrid() {
+  const cells: (number | null)[] = Array(CAL_FIRST_DOW).fill(null);
+  for (let d = 1; d <= CAL_DAYS_IN_MONTH; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+const calCells = buildCalendarGrid();
+
+// days that have events
+const eventDays = new Set(CALENDAR_EVENTS.map(e => parseInt(e.date.split("-")[2])));
+
+function MyEvents() {
+  const upcoming = CALENDAR_EVENTS.filter(e => parseInt(e.date.split("-")[2]) >= CAL_TODAY);
+
+  return (
+    <Card style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "14px 16px 12px" }}>
+        <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#121216" }}>My Events</p>
+        <div style={{ display: "flex", gap: 16 }}>
+
+          {/* Mini calendar */}
+          <div style={{ flexShrink: 0, width: 196 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>← May 2026</span>
+              <div style={{ display: "flex", gap: 2 }}>
+                {["‹", "›"].map(ch => (
+                  <button key={ch} style={{ width: 22, height: 22, border: BORDER, borderRadius: 5, background: "#fff", cursor: "pointer", fontSize: 12, color: "#8E8E97", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-inter)" }}>{ch}</button>
+                ))}
+              </div>
+            </div>
+            {/* Day-of-week headers */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 2 }}>
+              {CAL_DOW_LABELS.map((d, i) => (
+                <div key={i} style={{ textAlign: "center", fontSize: 10, fontWeight: 500, color: "#8E8E97", padding: "2px 0" }}>{d}</div>
+              ))}
+            </div>
+            {/* Day cells */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: 1 }}>
+              {calCells.map((day, i) => {
+                const isToday = day === CAL_TODAY;
+                const hasEvent = day !== null && eventDays.has(day);
+                return (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 26 }}>
+                    <div style={{
+                      width: 24, height: 24, borderRadius: "50%",
+                      background: isToday ? "#3E4FD3" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: day ? "pointer" : "default",
+                    }}>
+                      <span style={{ fontSize: 11, color: isToday ? "#fff" : day ? "#121216" : "transparent", fontWeight: isToday ? 600 : 400 }}>
+                        {day ?? ""}
+                      </span>
+                    </div>
+                    {hasEvent && !isToday && (
+                      <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3E4FD3", marginTop: 1 }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Upcoming */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: "#121216" }}>Upcoming</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {upcoming.map(evt => {
+                const day = parseInt(evt.date.split("-")[2]);
+                return (
+                  <div key={evt.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: "#EDEEFD", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: "#3E4FD3", lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.04em" }}>May</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#3E4FD3", lineHeight: 1.1 }}>{day}</span>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#121216", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{evt.title}</p>
+                      <p style={{ margin: "1px 0 0", fontSize: 11, color: "#8E8E97" }}>{evt.timeLabel}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button style={{ marginTop: 12, background: "none", border: "none", fontSize: 12, color: "#3E4FD3", cursor: "pointer", fontFamily: "var(--font-inter)", padding: 0 }}>
+              View all events →
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ── Dashboard root ────────────────────────────────────────────────────────────
+function DashboardContent() {
+  return (
+    <div>
+      <p style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "#121216" }}>Your students</p>
+      <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
+        {/* Left — leaderboard */}
+        <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <StudentLeaderboard />
+        </div>
+        {/* Right — stacked cards */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+          <EngagementGraph />
+          <MyAssignedActivities />
+          <MyIntake />
+          <MyEvents />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Content (page router) ────────────────────────────────────────────────────
+function Content({ page }: { page: NavId }) {
   return (
     <div style={{ flex: 1, overflowY: "auto", background: "#fff", padding: 24 }}>
-      {/* ── Drop page content here ── */}
-      <span style={{ color: "#ccc", fontSize: 12 }}>Content</span>
+      {page === 1 && <DashboardContent />}
+      {page !== 1 && (
+        <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
+      )}
     </div>
   );
 }
@@ -304,19 +562,11 @@ export default function Home() {
   const [activeNav, setActiveNav] = useState<NavId>(1);
 
   return (
-    <div
-      className={inter.variable}
-      style={{
-        width: "100vw", height: "100vh", overflow: "hidden",
-        display: "flex",
-        fontFamily: "var(--font-inter)",
-        userSelect: "none", WebkitUserSelect: "none",
-      }}
-    >
+    <div className={inter.variable} style={{ width: "100vw", height: "100vh", overflow: "hidden", display: "flex", fontFamily: "var(--font-inter)", userSelect: "none", WebkitUserSelect: "none" }}>
       <Sidebar active={activeNav} onSelect={setActiveNav} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <TopBar page={activeNav} />
-        <Content />
+        <Content page={activeNav} />
       </div>
     </div>
   );
