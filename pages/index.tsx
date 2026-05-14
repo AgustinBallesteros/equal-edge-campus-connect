@@ -707,11 +707,11 @@ function WhatsWorkingCards() {
         <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Conversations this month</p>
         <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
           <div>
-            <span style={{ display: "block", fontSize: 32, fontWeight: 600, color: "#121216", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_SENT}</span>
+            <span style={{ display: "block", fontSize: 32, fontWeight: 700, color: "#3E4FD3", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_SENT}</span>
             <span style={{ fontSize: 12, color: "#8E8E97" }}>sent by you</span>
           </div>
           <div>
-            <span style={{ display: "block", fontSize: 32, fontWeight: 600, color: "#121216", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_RECEIVED}</span>
+            <span style={{ display: "block", fontSize: 32, fontWeight: 700, color: "#121216", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_RECEIVED}</span>
             <span style={{ fontSize: 12, color: "#8E8E97" }}>from students</span>
           </div>
         </div>
