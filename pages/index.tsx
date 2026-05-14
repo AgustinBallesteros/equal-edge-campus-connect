@@ -289,17 +289,21 @@ function StudentLeaderboard() {
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#8E8E97" }}>Ranked by engagement score this month</p>
           </div>
           {/* Tabs */}
-          <div style={{ display: "flex", gap: 0 }}>
+          <div style={{
+            display: "flex", alignItems: "center",
+            height: 32, background: "#F8F8FA", borderRadius: 8, padding: 2, border: BORDER,
+          }}>
             {LEADER_TABS.map((t) => {
               const active = tab === t;
               return (
                 <button key={t} onClick={() => setTab(t)} style={{
-                  padding: "5px 10px", border: "none", background: "none",
-                  fontSize: 12, fontWeight: active ? 600 : 400,
+                  height: 28, paddingInline: 10, borderRadius: 6, border: "none",
+                  background: active ? "#fff" : "transparent",
                   color: active ? "#121216" : "#8E8E97",
-                  borderBottom: active ? "2px solid #3E4FD3" : "2px solid transparent",
-                  cursor: "pointer", fontFamily: "var(--font-inter)",
-                  transition: `color ${MS.dFast} ${MS.eOut}`,
+                  fontSize: 12, fontWeight: active ? 500 : 400,
+                  fontFamily: "var(--font-inter)", cursor: "pointer",
+                  boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
                 }}>{t}</button>
               );
             })}
