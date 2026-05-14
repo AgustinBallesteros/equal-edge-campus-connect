@@ -109,9 +109,9 @@ const NAV_ACTIVE_COLOR = "#3E4FD3";
 const NAV_ACTIVE_BG    = "#EDEEFD";
 
 // ─── Button helpers ───────────────────────────────────────────────────────────
-function BtnMain({ label }: { label: string }) {
+function BtnMain({ label, onClick }: { label: string; onClick?: () => void }) {
   return (
-    <button style={{
+    <button onClick={onClick} style={{
       height: 36, paddingInline: 14, borderRadius: 8, border: "none",
       background: "#3E4FD3", color: "#fff",
       fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)",
@@ -330,15 +330,122 @@ function DashboardActions({
 // ─── Page configs ─────────────────────────────────────────────────────────────
 type PageConfig = { title: string; description: string; actions: ReactElement | null };
 
+// ─── Add Student Modal ────────────────────────────────────────────────────────
+function AddStudentModal({ show, onClose }: { show: boolean; onClose: () => void }) {
+  const [mounted, setMounted] = useState(show);
+  const [vis,     setVis]     = useState(show);
+  const [firstName, setFirstName] = useState("");
+  const [lastName,  setLastName]  = useState("");
+  const [email,     setEmail]     = useState("");
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => {
+        setMounted(false);
+        setFirstName(""); setLastName(""); setEmail("");
+      }, 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", height: 40, paddingInline: 12, boxSizing: "border-box",
+    borderRadius: 8, border: "1.5px solid #E8E8EC",
+    fontSize: 14, color: "#121216", fontFamily: "var(--font-inter)",
+    outline: "none", background: "#fff",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "background 220ms ease",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 12, width: 480,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.16)",
+          opacity: vis ? 1 : 0,
+          transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)",
+          transition: "opacity 220ms ease, transform 220ms ease",
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: "24px 24px 20px" }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Add Student</div>
+          <div style={{ fontSize: 13, color: "#8E8E97", lineHeight: 1.55 }}>
+            The student will appear on the roster. You can send an invitation separately.
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E8E8EC" }} />
+
+        {/* Fields */}
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          {([
+            { label: "First Name",    value: firstName, set: setFirstName, placeholder: "e.g. Jordan"                   },
+            { label: "Last Name",     value: lastName,  set: setLastName,  placeholder: "e.g. Martinez"                 },
+            { label: "Email Address", value: email,     set: setEmail,     placeholder: "e.g. j.martinez@university.edu" },
+          ] as { label: string; value: string; set: (v: string) => void; placeholder: string }[]).map(({ label, value, set, placeholder }) => (
+            <div key={label}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#121216", marginBottom: 6 }}>
+                {label}
+              </label>
+              <input
+                type="text" value={value} placeholder={placeholder}
+                onChange={e => set(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div style={{ height: 1, background: "#E8E8EC" }} />
+
+        {/* Footer */}
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{
+            height: 36, paddingInline: 16, borderRadius: 8, border: BORDER,
+            background: "#fff", color: "#121216",
+            fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+          }}>
+            Cancel
+          </button>
+          <button style={{
+            height: 36, paddingInline: 16, borderRadius: 8, border: "none",
+            background: "#3E4FD3", color: "#fff",
+            fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+          }}>
+            Add Student
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function makePageConfigs(
   view: ViewTab,
   setView: (v: ViewTab) => void,
   toolsVisible: ToolsVisible,
   setToolsVisible: (tv: ToolsVisible) => void,
+  onAddStudent: () => void,
 ): Record<NavId, PageConfig> {
   return {
     1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",              actions: <DashboardActions view={view} onViewChange={setView} toolsVisible={toolsVisible} setToolsVisible={setToolsVisible} /> },
-    2: { title: "Student Roster", description: "Manage student access and invitation status",             actions: <><BtnMain label="Add Student" /><BtnSecondary label="Import CSV" /></> },
+    2: { title: "Student Roster", description: "Manage student access and invitation status",             actions: <><BtnMain label="Add Student" onClick={onAddStudent} /><BtnSecondary label="Import CSV" /></> },
     3: { title: "Learn Library",  description: "Browse and assign lessons to students",                   actions: null },
     4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" /> },
     5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
@@ -1606,10 +1713,11 @@ function Content({ page, view, onNavigate, toolsVisible }: { page: NavId; view: 
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [activeNav,    setActiveNav]    = useState<NavId>(1);
-  const [dashView,     setDashView]     = useState<ViewTab>("This Month");
-  const [toolsVisible, setToolsVisible] = useState<ToolsVisible>(initToolsVisible);
-  const pageConfigs = makePageConfigs(dashView, setDashView, toolsVisible, setToolsVisible);
+  const [activeNav,      setActiveNav]      = useState<NavId>(1);
+  const [dashView,       setDashView]       = useState<ViewTab>("This Month");
+  const [toolsVisible,   setToolsVisible]   = useState<ToolsVisible>(initToolsVisible);
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+  const pageConfigs = makePageConfigs(dashView, setDashView, toolsVisible, setToolsVisible, () => setAddStudentOpen(true));
 
   return (
     <div className={inter.variable} style={{ width: "100vw", height: "100vh", overflow: "hidden", display: "flex", fontFamily: "var(--font-inter)", userSelect: "none", WebkitUserSelect: "none" }}>
@@ -1618,6 +1726,7 @@ export default function Home() {
         <TopBar page={activeNav} configs={pageConfigs} />
         <Content page={activeNav} view={dashView} onNavigate={setActiveNav} toolsVisible={toolsVisible} />
       </div>
+      <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
     </div>
   );
 }
