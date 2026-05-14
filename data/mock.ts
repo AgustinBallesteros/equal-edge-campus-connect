@@ -190,6 +190,11 @@ export const WEEKLY_ENGAGEMENT: EngagementPoint[] = [
   { label: "May W2", score: 94 },
 ];
 
+// ─── Mock "today" reference date ─────────────────────────────────────────────
+// All UI that needs "today" should read from here, not hardcode dates.
+
+export const MOCK_TODAY = { year: 2026, month: 4 /* 0-indexed, May */, day: 14 };
+
 // ─── Calendar events ──────────────────────────────────────────────────────────
 
 export type CalendarEvent = {

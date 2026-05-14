@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, type ReactElement } from "react";
-import { ALUMNI, WEEKLY_ENGAGEMENT, CALENDAR_EVENTS } from "../data/mock";
+import { ALUMNI, WEEKLY_ENGAGEMENT, CALENDAR_EVENTS, MOCK_TODAY } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -436,7 +436,7 @@ function MyIntake() {
 }
 
 // ── My Events ────────────────────────────────────────────────────────────────
-const CAL_TODAY_YEAR = 2026, CAL_TODAY_MONTH = 4 /* May, 0-indexed */, CAL_TODAY_DAY = 14;
+const { year: CAL_TODAY_YEAR, month: CAL_TODAY_MONTH, day: CAL_TODAY_DAY } = MOCK_TODAY;
 const CAL_DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
