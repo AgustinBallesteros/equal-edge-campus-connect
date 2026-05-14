@@ -688,10 +688,11 @@ const activated = ALUMNI.filter(a => a.status === "Activated").sort((a, b) => b.
 const scheduledDateLabel = `${MONTH_NAMES[CAL_TODAY_MONTH].slice(0, 3)} ${CAL_TODAY_DAY}`;
 
 function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void }) {
-  const [tab,     setTab]     = useState<LeaderTab>("All"); // button highlight
-  const [rowTab,  setRowTab]  = useState<LeaderTab>("All"); // actual data
-  const [rowsVis, setRowsVis] = useState(true);
-  const [scheduled, setScheduled] = useState<Set<number>>(new Set());
+  const [tab,        setTab]        = useState<LeaderTab>("All"); // button highlight
+  const [rowTab,     setRowTab]     = useState<LeaderTab>("All"); // actual data
+  const [rowsVis,    setRowsVis]    = useState(true);
+  const [scheduled,  setScheduled]  = useState<Set<number>>(new Set());
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
 
   function switchTab(next: LeaderTab) {
     if (next === tab) return;
@@ -763,12 +764,18 @@ function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void 
           const incomplete = a.assignedActivityIds.length - completed;
           const isScheduled = scheduled.has(a.id);
           return (
-            <div key={a.id} style={{
-              display: "grid", gridTemplateColumns: "24px 1fr 48px 72px 52px 52px 72px 80px 104px",
-              gap: 6, padding: "8px 16px",
-              borderBottom: i < rows.length - 1 ? BORDER : "none",
-              alignItems: "center",
-            }}>
+            <div key={a.id}
+              onMouseEnter={() => setHoveredRow(a.id)}
+              onMouseLeave={() => setHoveredRow(null)}
+              style={{
+                display: "grid", gridTemplateColumns: "24px 1fr 48px 72px 52px 52px 72px 80px 104px",
+                gap: 6, padding: "8px 16px",
+                borderBottom: i < rows.length - 1 ? BORDER : "none",
+                alignItems: "center",
+                background: hoveredRow === a.id ? "#EDEEFD" : "#fff",
+                transition: `background ${MS.dFast} ${MS.eOut}`,
+                cursor: "default",
+              }}>
               {/* Rank */}
               <span style={{ fontSize: rank <= 3 ? 14 : 12, color: "#8E8E97", textAlign: "center", lineHeight: 1 }}>
                 {rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank}
@@ -1467,6 +1474,7 @@ function RosterPage() {
   const [sortKey,      setSortKey]      = useState<SortKey>("name");
   const [sortDir,      setSortDir]      = useState<SortDir>("asc");
   const [removeTarget, setRemoveTarget] = useState<Alumni | null>(null);
+  const [hoveredRow,   setHoveredRow]   = useState<number | null>(null);
 
   // Close action menu on outside click
   useEffect(() => {
@@ -1637,13 +1645,16 @@ function RosterPage() {
             const menuOpen   = openMenu === a.id;
 
             return (
-              <div key={a.id} style={{
-                display: "grid", gridTemplateColumns: ROSTER_COL,
-                padding: "0 20px", alignItems: "center",
-                borderBottom: i < rows.length - 1 ? BORDER : "none",
-                background: isSelected ? "#F5F6FE" : "#fff",
-                transition: `background ${MS.dFast} ${MS.eOut}`,
-              }}>
+              <div key={a.id}
+                onMouseEnter={() => setHoveredRow(a.id)}
+                onMouseLeave={() => setHoveredRow(null)}
+                style={{
+                  display: "grid", gridTemplateColumns: ROSTER_COL,
+                  padding: "0 20px", alignItems: "center",
+                  borderBottom: i < rows.length - 1 ? BORDER : "none",
+                  background: isSelected ? "#F5F6FE" : hoveredRow === a.id ? "#EDEEFD" : "#fff",
+                  transition: `background ${MS.dFast} ${MS.eOut}`,
+                }}>
 
                 {/* Checkbox */}
                 <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
