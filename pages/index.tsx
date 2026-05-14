@@ -1241,7 +1241,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // Column template — tighter date cols, more room for name/email/staff
-const ROSTER_COL = "36px minmax(0,0.7fr) minmax(0,0.8fr) 102px 106px 116px 102px 118px 130px minmax(0,0.9fr) 80px 44px";
+const ROSTER_COL = "36px minmax(0,0.7fr) minmax(0,0.8fr) 102px 106px 116px 102px 118px 130px minmax(0,0.65fr) 100px 44px";
 
 type SortKey = "name" | "status" | "dateInvited" | "dateActivated" | "dateLastActive" | "lessons" | "activities" | "staff" | "engagement";
 type SortDir = "asc" | "desc";
