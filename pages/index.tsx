@@ -1471,7 +1471,9 @@ function SortArrow({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 function RosterPage() {
-  const [filter,   setFilter]   = useState<RosterFilter>("All");
+  const [filter,    setFilter]    = useState<RosterFilter>("All"); // tab highlight
+  const [rowFilter, setRowFilter] = useState<RosterFilter>("All"); // actual data
+  const [rowsVis,   setRowsVis]   = useState(true);
   const [search,   setSearch]   = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [openMenu,     setOpenMenu]     = useState<number | null>(null);
@@ -1479,6 +1481,16 @@ function RosterPage() {
   const [sortDir,      setSortDir]      = useState<SortDir>("asc");
   const [removeTarget, setRemoveTarget] = useState<Alumni | null>(null);
   const [hoveredRow,   setHoveredRow]   = useState<number | null>(null);
+
+  function switchFilter(next: RosterFilter) {
+    if (next === filter) return;
+    setFilter(next);
+    setRowsVis(false);
+    setTimeout(() => {
+      setRowFilter(next);
+      requestAnimationFrame(() => setRowsVis(true));
+    }, 160);
+  }
 
   // Close action menu on outside click
   useEffect(() => {
@@ -1497,7 +1509,7 @@ function RosterPage() {
 
   const rows = ALUMNI
     .filter(a => {
-      if (filter !== "All" && a.status !== filter) return false;
+      if (rowFilter !== "All" && a.status !== rowFilter) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         const staffName = STAFF.find(s => s.id === a.staffMemberId)?.name.toLowerCase() ?? "";
@@ -1579,7 +1591,7 @@ function RosterPage() {
             {ROSTER_FILTERS.map(f => {
               const active = filter === f;
               return (
-                <button key={f} onClick={() => setFilter(f)} style={{
+                <button key={f} onClick={() => switchFilter(f)} style={{
                   height: 28, paddingInline: 10, borderRadius: 6, border: "none",
                   background: active ? "#fff" : "transparent",
                   color: active ? "#121216" : "#8E8E97",
@@ -1721,7 +1733,12 @@ function RosterPage() {
         </div>
 
         {/* Scrollable rows */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{
+          flex: 1, overflowY: "auto",
+          opacity: rowsVis ? 1 : 0,
+          transform: rowsVis ? "translateY(0)" : "translateY(4px)",
+          transition: "opacity 160ms ease, transform 160ms ease",
+        }}>
           {rows.length === 0 && (
             <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "#C5C5CC" }}>
               No students match your search.
