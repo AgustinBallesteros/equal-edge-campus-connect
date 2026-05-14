@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, type ReactElement } from "react";
-import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, type GraphViewKey } from "../data/mock";
+import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, type GraphViewKey } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -649,6 +649,82 @@ function MyEvents({ onNavigate }: { onNavigate: (page: NavId) => void }) {
   );
 }
 
+// ── What's working — module-level derived data ────────────────────────────────
+const topScripts = [...SCRIPTS]
+  .sort((a, b) => (SCRIPT_VIEWS[b.id] ?? 0) - (SCRIPT_VIEWS[a.id] ?? 0))
+  .slice(0, 3);
+const maxScriptViews    = SCRIPT_VIEWS[topScripts[0]?.id] ?? 1;
+const unreadThreadCount = MESSAGE_THREADS.filter(t => t.unreadCount > 0).length;
+
+// ── What's working — cards ────────────────────────────────────────────────────
+function WhatsWorkingCards() {
+  return (
+    <div style={{ display: "flex", gap: 16 }}>
+
+      {/* Card 1 — Scripts */}
+      <StatCard style={{ width: "25%", flexShrink: 0, height: 220 }}>
+        <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Scripts</p>
+        <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Most viewed by your students</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {topScripts.map(s => {
+            const views = SCRIPT_VIEWS[s.id] ?? 0;
+            const barW  = Math.round((views / maxScriptViews) * 100);
+            return (
+              <div key={s.id}>
+                <p style={{ margin: "0 0 2px", fontSize: 13, color: "#121216", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.title}</p>
+                <p style={{ margin: "0 0 4px", fontSize: 11, color: "#8E8E97" }}>{views} views</p>
+                <div style={{ height: 4, borderRadius: 2, background: "#E5E5EA" }}>
+                  <div style={{ height: "100%", width: `${barW}%`, borderRadius: 2, background: "#3E4FD3" }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </StatCard>
+
+      {/* Card 2 — Lessons */}
+      <StatCard style={{ flex: 1, height: 220 }}>
+        <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Lessons</p>
+        <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Completion rate across all assigned lessons</p>
+        <span style={{ display: "block", fontSize: 56, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 8 }}>{lessonsRate}%</span>
+        <div style={{ height: 6, borderRadius: 3, background: "#E5E5EA", marginBottom: 6 }}>
+          <div style={{ height: "100%", width: `${lessonsRate}%`, borderRadius: 3, background: "#3E4FD3" }} />
+        </div>
+        <p style={{ margin: "0 0 10px", fontSize: 12, color: "#8E8E97" }}>
+          {MOCK_LESSONS_COMPLETED} completed &nbsp;·&nbsp; {lessonsNotStarted} in progress or not started &nbsp;·&nbsp; {totalAssignedLessons} total assigned
+        </p>
+        <p style={{ margin: "0 0 3px", fontSize: 12, color: "#22A062" }}>
+          Highest: {MOCK_LESSON_BEST.title} &nbsp; {MOCK_LESSON_BEST.rate}%
+        </p>
+        <p style={{ margin: 0, fontSize: 12, color: "#C72727" }}>
+          Lowest: {MOCK_LESSON_WORST.title} &nbsp; {MOCK_LESSON_WORST.rate}%
+        </p>
+      </StatCard>
+
+      {/* Card 3 — Messages */}
+      <StatCard style={{ width: "25%", flexShrink: 0, height: 220 }}>
+        <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Messages</p>
+        <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Conversations this month</p>
+        <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
+          <div>
+            <span style={{ display: "block", fontSize: 32, fontWeight: 600, color: "#121216", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_SENT}</span>
+            <span style={{ fontSize: 12, color: "#8E8E97" }}>sent by you</span>
+          </div>
+          <div>
+            <span style={{ display: "block", fontSize: 32, fontWeight: 600, color: "#121216", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_RECEIVED}</span>
+            <span style={{ fontSize: 12, color: "#8E8E97" }}>from students</span>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#22A062", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#fff", flexShrink: 0 }}>{unreadThreadCount}</span>
+          <span style={{ fontSize: 12, color: "#8E8E97" }}>unread conversations</span>
+        </div>
+      </StatCard>
+
+    </div>
+  );
+}
+
 // ── Section header ────────────────────────────────────────────────────────────
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
@@ -688,6 +764,7 @@ const onTrackCount         = activated.filter(a => a.engagementScore > 40).lengt
 const activationPct        = Math.round(activated.length / (activated.length + invitedAlumni.length) * 100);
 const totalAssignedLessons = activated.reduce((s, a) => s + a.assignedLessonIds.length, 0);
 const lessonsRate          = Math.round(MOCK_LESSONS_COMPLETED / totalAssignedLessons * 100);
+const lessonsNotStarted    = totalAssignedLessons - MOCK_LESSONS_COMPLETED;
 const totalAssignedActs    = activated.reduce((s, a) => s + a.assignedActivityIds.length, 0);
 
 // ── Program snapshot ──────────────────────────────────────────────────────────
@@ -793,17 +870,7 @@ function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (pa
           title="What's working?"
           subtitle="See which tools are driving the most student action"
         />
-        <div style={{ display: "flex", gap: 16 }}>
-          <Card style={{ width: "25%", height: 220, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 12, color: "#ccc" }}>Card 1 — coming soon</span>
-          </Card>
-          <Card style={{ flex: 1, height: 220, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 12, color: "#ccc" }}>Card 2 — coming soon</span>
-          </Card>
-          <Card style={{ width: "25%", height: 220, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 12, color: "#ccc" }}>Card 3 — coming soon</span>
-          </Card>
-        </div>
+        <WhatsWorkingCards />
       </div>
     </div>
   );

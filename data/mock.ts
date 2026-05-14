@@ -544,10 +544,25 @@ export const MESSAGE_THREADS: MessageThread[] = [
 
 // ─── Program health delta (mock month-over-month change) ─────────────────────
 
-export const PROGRAM_HEALTH_DELTA            = 6;  // +6 pts since last month
-export const MOCK_LESSONS_COMPLETED          = 52; // out of 84 assigned to activated students (~62%)
+export const PROGRAM_HEALTH_DELTA            = 6;   // +6 pts since last month
+export const MOCK_LESSONS_COMPLETED          = 52;  // out of 84 assigned to activated students (~62%)
 export const MOCK_ACTIVITIES_OVERDUE         = 27;
 export const MOCK_ACTIVITIES_RESOLVED_WEEK   = 12;
+
+// Script view counts (id → views)
+export const SCRIPT_VIEWS: Record<number, number> = {
+  1: 41, 2: 19, 3: 34, 4: 28, 5: 22,
+  6: 17, 7: 31, 8: 26, 9: 14, 10: 23,
+  11: 9,  12: 18,
+};
+
+// Lesson completion highlights
+export const MOCK_LESSON_BEST  = { title: "Requesting Classroom Accommodations", rate: 83 };
+export const MOCK_LESSON_WORST = { title: "College to Career Transition",        rate: 22 };
+
+// Messages monthly totals
+export const MOCK_MESSAGES_SENT     = 47;
+export const MOCK_MESSAGES_RECEIVED = 89;
 
 // ─── Mock "today" reference date ─────────────────────────────────────────────
 // All UI that needs "today" should read from here, not hardcode dates.
