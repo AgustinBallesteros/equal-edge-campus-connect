@@ -250,7 +250,10 @@ function TopBar({ page }: { page: NavId }) {
 const AVATAR_PALETTE = ["#3E4FD3","#F59E0B","#10B981","#EF4444","#8B5CF6","#06B6D4","#F97316","#EC4899","#14B8A6","#7C3AED"];
 const avatarColor    = (id: number) => AVATAR_PALETTE[id % AVATAR_PALETTE.length];
 const avatarInitials = (name: string) => { const p = name.trim().split(" "); return (p[0][0] + (p[1]?.[0] ?? "")).toUpperCase(); };
-const scoreColor     = (s: number) => s >= 80 ? "#F59E0B" : s >= 60 ? "#3E4FD3" : s >= 40 ? "#6B7280" : "#EF4444";
+const scorePill = (s: number) =>
+  s >= 80 ? { bg: "#EBFAF2", text: "#22A062" } :
+  s >= 40 ? { bg: "#FEF9E6", text: "#C28F11" } :
+             { bg: "#FFEFEF", text: "#C72727" };
 
 // Shared card shell
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -325,10 +328,8 @@ function StudentLeaderboard() {
               alignItems: "center",
             }}>
               {/* Rank */}
-              <span style={{ fontSize: 12, color: "#8E8E97", textAlign: "center" }}>
-                {rank === 1
-                  ? <svg width="14" height="14" viewBox="0 0 14 14" fill="#F59E0B"><path d="M7 1l1.5 3.5L12 5l-2.5 2.5.6 3.5L7 9.5 3.9 11l.6-3.5L2 5l3.5-.5L7 1z"/></svg>
-                  : rank}
+              <span style={{ fontSize: rank <= 3 ? 14 : 12, color: "#8E8E97", textAlign: "center", lineHeight: 1 }}>
+                {rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank}
               </span>
               {/* Student */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
@@ -338,7 +339,15 @@ function StudentLeaderboard() {
                 <span style={{ fontSize: 13, color: "#121216", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
               </div>
               {/* Score */}
-              <span style={{ fontSize: 13, fontWeight: 600, color: scoreColor(a.engagementScore), textAlign: "center" }}>{a.engagementScore}</span>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  width: 32, height: 20, borderRadius: 4,
+                  background: scorePill(a.engagementScore).bg,
+                  color: scorePill(a.engagementScore).text,
+                  fontSize: 10, fontWeight: 600,
+                }}>{a.engagementScore}</span>
+              </div>
               {/* Trend */}
               <span style={{ fontSize: 12, color: trendColor, textAlign: "center" }}>
                 {trendArrow} {a.trend > 0 ? `+${a.trend}` : a.trend === 0 ? "—" : a.trend}
