@@ -137,41 +137,54 @@ function Sidebar({
         borderRight: BORDER,
         display: "flex",
         flexDirection: "column",
-        padding: 16,
         overflow: "hidden",
         boxSizing: "border-box",
       }}
     >
-      {/* Logo */}
-      <div style={{ padding: "8px 10px 16px" }}>
-        {/* ── Drop logo here ── */}
+      {/* Logo — matches topbar height so separator aligns with topbar bottom border */}
+      <div style={{
+        height: TOPBAR_H,
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        paddingInline: 16,
+        gap: 8,
+      }}>
         <div style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: "#E5E5EA",
+          width: 32, height: 32, borderRadius: "50%",
+          background: "#3E4FD3",
           display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
         }}>
-          <span style={{ fontSize: 10, color: "#aaa", fontWeight: 600 }}>EE</span>
+          <span style={{ fontSize: 10, color: "#fff", fontWeight: 600, letterSpacing: "0.02em" }}>CC</span>
         </div>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#121216", lineHeight: 1 }}>
+          Campus Connect
+        </span>
       </div>
 
-      {/* Separator */}
-      <div style={{ height: 1, background: "#E5E5EA", marginBottom: 8 }} />
+      {/* Separator — flush with topbar bottom border */}
+      <div style={{ height: 1, background: "#E5E5EA", marginInline: 0, marginBottom: 8 }} />
 
-      {/* Main nav */}
-      <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {MAIN_NAV.map((item) => (
-          <NavItem key={item} label={item} active={active === item} onClick={() => onSelect(item)} />
-        ))}
-      </nav>
+      {/* Nav padding wrapper */}
+      <div style={{ paddingInline: 16, display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
 
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
+        {/* Main nav */}
+        <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {MAIN_NAV.map((item) => (
+            <NavItem key={item} label={item} active={active === item} onClick={() => onSelect(item)} />
+          ))}
+        </nav>
 
-      {/* Separator */}
-      <div style={{ height: 1, background: "#E5E5EA", marginBottom: 8 }} />
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
 
-      {/* Settings */}
-      <NavItem label="Settings" active={active === "Settings"} onClick={() => onSelect("Settings")} />
+        {/* Separator */}
+        <div style={{ height: 1, background: "#E5E5EA", marginBottom: 8 }} />
+
+        {/* Settings */}
+        <NavItem label="Settings" active={active === "Settings"} onClick={() => onSelect("Settings")} />
+      </div>
     </div>
   );
 }
