@@ -190,6 +190,10 @@ export const WEEKLY_ENGAGEMENT: EngagementPoint[] = [
   { label: "May W2", score: 94 },
 ];
 
+// ─── Program health delta (mock month-over-month change) ─────────────────────
+
+export const PROGRAM_HEALTH_DELTA = 6; // +6 pts since last month
+
 // ─── Mock "today" reference date ─────────────────────────────────────────────
 // All UI that needs "today" should read from here, not hardcode dates.
 

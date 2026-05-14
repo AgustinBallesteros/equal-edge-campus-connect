@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, type ReactElement } from "react";
-import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, type GraphViewKey } from "../data/mock";
+import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, type GraphViewKey } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -661,19 +661,74 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
   );
 }
 
+// ── Hoverable stat card ───────────────────────────────────────────────────────
+function StatCard({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        flex: 1, borderRadius: 10, border: BORDER,
+        background: hovered ? "#EDEEFD" : "#fff",
+        transition: `background ${MS.dFast} ${MS.eOut}`,
+        padding: "20px 20px 18px",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Computed stats
+const invitedAlumni   = ALUMNI.filter(a => a.status === "Invited");
+const programHealth   = Math.round(activated.reduce((s, a) => s + a.engagementScore, 0) / activated.length);
+const onTrackCount    = activated.filter(a => a.engagementScore > 40).length;
+const activationPct   = Math.round(activated.length / (activated.length + invitedAlumni.length) * 100);
+
 // ── Program snapshot ──────────────────────────────────────────────────────────
 function ProgramSnapshot() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Top row — 3 cards × 180px */}
+      {/* Top row — 3 stat cards × 192px */}
       <div style={{ display: "flex", gap: 16 }}>
-        {[1, 2, 3].map(n => (
-          <Card key={n} style={{ flex: 1, height: 192, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
-          </Card>
-        ))}
+
+        {/* Program Health */}
+        <StatCard style={{ height: 192 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+            <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{programHealth}</span>
+            <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/100</span>
+          </div>
+          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Program Health</p>
+          <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Your students{"'"} average engagement this month</p>
+          <div style={{ height: 6, borderRadius: 3, background: "#E5E5EA", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${programHealth}%`, borderRadius: 3, background: "#3E4FD3" }} />
+          </div>
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "#22A062" }}>↑ +{PROGRAM_HEALTH_DELTA} since last month</p>
+        </StatCard>
+
+        {/* Students on track */}
+        <StatCard style={{ height: 192 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+            <span style={{ fontSize: 64, fontWeight: 700, color: "#22A062", lineHeight: 1 }}>{onTrackCount}</span>
+            <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/{activated.length}</span>
+          </div>
+          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Students on track</p>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>for semester completion</p>
+        </StatCard>
+
+        {/* Activation rate */}
+        <StatCard style={{ height: 192 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+            <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{activationPct}%</span>
+          </div>
+          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Activation rate</p>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of invited students are active</p>
+        </StatCard>
+
       </div>
-      {/* Bottom row — 4 cards × 100px */}
+      {/* Bottom row — 4 cards × 128px */}
       <div style={{ display: "flex", gap: 16 }}>
         {[4, 5, 6, 7].map(n => (
           <Card key={n} style={{ flex: 1, height: 128, display: "flex", alignItems: "center", justifyContent: "center" }}>
