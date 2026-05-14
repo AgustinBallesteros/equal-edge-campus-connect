@@ -485,7 +485,7 @@ function MyEvents() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: 1 }}>
               {calCells.map((day, i) => {
                 const isToday   = day === CAL_TODAY;
-                const isSelected = day === selectedDay;
+                const isSelected = day !== null && day === selectedDay;
                 const hasEvent  = day !== null && eventDays.has(day);
                 return (
                   <div
