@@ -151,7 +151,7 @@ function Sidebar({
         gap: 8,
       }}>
         <div style={{
-          width: 32, height: 32, borderRadius: "50%",
+          width: 28, height: 28, borderRadius: "50%",
           background: "#3E4FD3",
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,
