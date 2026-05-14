@@ -1,0 +1,654 @@
+/*
+ * motion-system.css
+ * Generic motion token layer + animation classes
+ *
+ * Structure:
+ *   1. Design tokens (:root)
+ *   2. Screen / page transitions
+ *   3. Content entrance stagger
+ *   4. Interactive element feedback
+ *   5. Expanding / collapsing list
+ *   6. Checkbox — check & uncheck
+ *   7. Progress bars (linear, circular, custom-shaped)
+ *   8. Reduced motion override  ← always last
+ *
+ * Usage:
+ *   Import once at app root. Apply classes directly to elements.
+ *   All classes are prefixed [ms-] to avoid collisions.
+ *   No component names, no project-specific identifiers.
+ */
+
+
+/* ─────────────────────────────────────────────────────────────
+   1. DESIGN TOKENS
+   Override any of these in a project-level :root block.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Durations */
+  --ms-duration-instant:   0ms;
+  --ms-duration-micro:     100ms;   /* press feedback, icon swaps */
+  --ms-duration-fast:      150ms;   /* focus/hover state changes */
+  --ms-duration-element:   250ms;   /* element enter/exit */
+  --ms-duration-expand:    300ms;   /* list expand / collapse */
+  --ms-duration-screen:    300ms;   /* full screen transitions */
+  --ms-duration-progress:  600ms;   /* progress bar fill */
+  --ms-duration-slow:      800ms;   /* spinners, loaders */
+
+  /* Easings */
+  --ms-ease-out:           cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ms-ease-in-out:        cubic-bezier(0.45, 0.00, 0.55, 1.00);
+  --ms-ease-spring:        cubic-bezier(0.34, 1.20, 0.64, 1.00);  /* subtle overshoot, use sparingly */
+  --ms-ease-linear:        linear;
+
+  /* Spatial */
+  --ms-slide-distance:     12px;    /* screen transition slide */
+  --ms-enter-distance:     6px;     /* element entrance lift */
+  --ms-error-distance:     4px;     /* error message slide-in */
+
+  /* Stagger */
+  --ms-stagger-step:       40ms;    /* delay increment between staggered items */
+  --ms-screen-delay:       60ms;    /* delay before entering screen animates */
+
+  /* Checkbox */
+  --ms-check-stroke:       #1D9E75; /* checked icon color — override per project */
+  --ms-check-duration:     200ms;
+
+  /* Progress */
+  --ms-progress-bg:        rgba(0, 0, 0, 0.08);
+  --ms-progress-fill:      #534AB7; /* override per project */
+  --ms-progress-radius:    99px;    /* linear bar border-radius */
+  --ms-progress-height:    6px;     /* linear bar height */
+  --ms-progress-size:      48px;    /* circular progress diameter */
+  --ms-progress-stroke:    4px;     /* circular stroke width */
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   2. SCREEN / PAGE TRANSITIONS
+   For use with React Transition Group CSSTransition,
+   or any className-based transition system.
+
+   Direction:
+     [ms-forward]  new screen enters from right → exits left
+     [ms-back]     new screen enters from left  → exits right
+     [ms-fade]     crossfade only, no translate (flow exit, modal)
+   ───────────────────────────────────────────────────────────── */
+
+/* Forward — enter from right */
+.ms-forward-enter {
+  opacity: 0;
+  transform: translateX(var(--ms-slide-distance));
+}
+.ms-forward-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity  var(--ms-duration-screen) var(--ms-ease-out) var(--ms-screen-delay),
+    transform var(--ms-duration-screen) var(--ms-ease-out) var(--ms-screen-delay);
+}
+.ms-forward-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+.ms-forward-exit-active {
+  opacity: 0;
+  transform: translateX(calc(var(--ms-slide-distance) * -1));
+  transition:
+    opacity  var(--ms-duration-element) var(--ms-ease-out),
+    transform var(--ms-duration-element) var(--ms-ease-out);
+}
+
+/* Back — enter from left */
+.ms-back-enter {
+  opacity: 0;
+  transform: translateX(calc(var(--ms-slide-distance) * -1));
+}
+.ms-back-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity  var(--ms-duration-screen) var(--ms-ease-out) var(--ms-screen-delay),
+    transform var(--ms-duration-screen) var(--ms-ease-out) var(--ms-screen-delay);
+}
+.ms-back-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+.ms-back-exit-active {
+  opacity: 0;
+  transform: translateX(var(--ms-slide-distance));
+  transition:
+    opacity  var(--ms-duration-element) var(--ms-ease-out),
+    transform var(--ms-duration-element) var(--ms-ease-out);
+}
+
+/* Fade — crossfade only (flow exit, modal close, tab swap) */
+.ms-fade-enter {
+  opacity: 0;
+}
+.ms-fade-enter-active {
+  opacity: 1;
+  transition: opacity var(--ms-duration-screen) var(--ms-ease-out) var(--ms-screen-delay);
+}
+.ms-fade-exit {
+  opacity: 1;
+}
+.ms-fade-exit-active {
+  opacity: 0;
+  transition: opacity var(--ms-duration-element) var(--ms-ease-out);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   3. CONTENT ENTRANCE — STAGGER
+   Apply [ms-enter] or [ms-enter-fade] to screen children.
+   Use [data-stagger="N"] for the stagger index (0-based).
+   Stagger delay = N × --ms-stagger-step.
+
+   [ms-enter]       opacity + translateY  (primary content)
+   [ms-enter-fade]  opacity only          (secondary / quiet content)
+
+   React pattern:
+     <div className="ms-enter" data-stagger="0">Logo</div>
+     <div className="ms-enter" data-stagger="1">Header</div>
+     <div className="ms-enter" data-stagger="2">First field</div>
+   ───────────────────────────────────────────────────────────── */
+
+.ms-enter {
+  animation: ms-fade-up var(--ms-duration-element) var(--ms-ease-out) both;
+}
+
+.ms-enter-fade {
+  animation: ms-fade-in var(--ms-duration-element) var(--ms-ease-out) both;
+}
+
+/* Stagger delays — extend as needed */
+.ms-enter[data-stagger="0"],
+.ms-enter-fade[data-stagger="0"] { animation-delay: 0ms; }
+
+.ms-enter[data-stagger="1"],
+.ms-enter-fade[data-stagger="1"] { animation-delay: calc(var(--ms-stagger-step) * 1); }
+
+.ms-enter[data-stagger="2"],
+.ms-enter-fade[data-stagger="2"] { animation-delay: calc(var(--ms-stagger-step) * 2); }
+
+.ms-enter[data-stagger="3"],
+.ms-enter-fade[data-stagger="3"] { animation-delay: calc(var(--ms-stagger-step) * 3); }
+
+.ms-enter[data-stagger="4"],
+.ms-enter-fade[data-stagger="4"] { animation-delay: calc(var(--ms-stagger-step) * 4); }
+
+.ms-enter[data-stagger="5"],
+.ms-enter-fade[data-stagger="5"] { animation-delay: calc(var(--ms-stagger-step) * 5); }
+
+.ms-enter[data-stagger="6"],
+.ms-enter-fade[data-stagger="6"] { animation-delay: calc(var(--ms-stagger-step) * 6); }
+
+.ms-enter[data-stagger="7"],
+.ms-enter-fade[data-stagger="7"] { animation-delay: calc(var(--ms-stagger-step) * 7); }
+
+@keyframes ms-fade-up {
+  from { opacity: 0; transform: translateY(var(--ms-enter-distance)); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ms-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   4. INTERACTIVE ELEMENT FEEDBACK
+   ───────────────────────────────────────────────────────────── */
+
+/* Button press — primary */
+.ms-btn {
+  transition: transform var(--ms-duration-micro) var(--ms-ease-out);
+}
+.ms-btn:active {
+  transform: scale(0.97);
+}
+
+/* Button press — icon/compact (tighter scale) */
+.ms-btn-icon {
+  transition: transform var(--ms-duration-micro) var(--ms-ease-out);
+}
+.ms-btn-icon:active {
+  transform: scale(0.90);
+}
+
+/* Field focus — color only, no movement */
+.ms-field {
+  transition:
+    border-color var(--ms-duration-fast) var(--ms-ease-out),
+    background-color var(--ms-duration-fast) var(--ms-ease-out);
+}
+
+/* Field error state */
+.ms-field--error {
+  border-color: currentColor;
+}
+
+/* Error / helper message appearing below a field */
+.ms-field-message {
+  animation: ms-error-in var(--ms-duration-element) var(--ms-ease-out) both;
+}
+
+@keyframes ms-error-in {
+  from { opacity: 0; transform: translateY(var(--ms-error-distance)); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Link hover underline — pseudo-element approach */
+.ms-link {
+  position: relative;
+  text-decoration: none;
+}
+.ms-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 0%;
+  height: 1px;
+  background-color: currentColor;
+  transition: width var(--ms-duration-fast) var(--ms-ease-out);
+}
+.ms-link:hover::after {
+  width: 100%;
+}
+
+/* Spinner — rotating stroke (inside buttons during loading) */
+.ms-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  animation: ms-spin var(--ms-duration-slow) var(--ms-ease-linear) infinite;
+  transform-origin: center;
+}
+
+@keyframes ms-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Disabled state — opacity only, no layout shift */
+.ms-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  transition: opacity var(--ms-duration-fast) var(--ms-ease-out);
+}
+.ms-disabled--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   5. EXPANDING / COLLAPSING LIST
+   Pattern: a trigger element toggles an [ms-list-body] panel.
+   Uses max-height + opacity approach — works without JS height
+   measurement when a safe max is set.
+
+   For dynamic/unknown heights in React, use a JS-measured
+   approach: set max-height to the scrollHeight on open,
+   and 0 on close. The transition still reads from this file.
+
+   HTML pattern:
+     <div class="ms-list">
+       <button class="ms-list-trigger ms-btn-icon" aria-expanded="false">
+         Label
+         <span class="ms-list-icon">▾</span>
+       </button>
+       <div class="ms-list-body" aria-hidden="true">
+         <ul class="ms-list-items">
+           <li class="ms-list-item ms-enter" data-stagger="0">Item 1</li>
+           <li class="ms-list-item ms-enter" data-stagger="1">Item 2</li>
+         </ul>
+       </div>
+     </div>
+
+   React: toggle [data-open="true"] on the [ms-list] wrapper
+   when the trigger is clicked. Use aria-expanded and
+   aria-hidden for accessibility.
+   ───────────────────────────────────────────────────────────── */
+
+.ms-list {
+  /* container — no style needed, just a hook */
+}
+
+/* The body panel — collapsed by default */
+.ms-list-body {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height var(--ms-duration-expand) var(--ms-ease-out),
+    opacity    var(--ms-duration-expand) var(--ms-ease-out);
+}
+
+/* Expanded state — toggle this class or [data-open="true"] via JS */
+.ms-list[data-open="true"] .ms-list-body,
+.ms-list.ms-list--open     .ms-list-body {
+  max-height: 1000px; /* safe ceiling — override if content is taller */
+  opacity: 1;
+}
+
+/*
+ * For known/measured heights in React:
+ * Apply inline style max-height: scrollHeight on open,
+ * max-height: 0 on close. The CSS transition above handles the animation.
+ * Override max-height via inline style — specificity wins.
+ */
+
+/* Collapse — faster than expand (asymmetric feel: snappy close, deliberate open) */
+.ms-list[data-open="false"] .ms-list-body,
+.ms-list:not([data-open])   .ms-list-body {
+  transition:
+    max-height calc(var(--ms-duration-expand) * 0.75) var(--ms-ease-in-out),
+    opacity    calc(var(--ms-duration-expand) * 0.6)  var(--ms-ease-out);
+}
+
+/* Chevron / indicator icon — rotates 180° when open */
+.ms-list-icon {
+  display: inline-block;
+  transition: transform var(--ms-duration-expand) var(--ms-ease-out);
+}
+.ms-list[data-open="true"] .ms-list-icon,
+.ms-list.ms-list--open     .ms-list-icon {
+  transform: rotate(180deg);
+}
+
+/* Individual list items — use with ms-enter stagger on mount */
+.ms-list-item {
+  /* base styles — no animation here, handled by ms-enter above */
+}
+
+/* List item appearing inside an already-open panel (lazy load, async) */
+.ms-list-item--appear {
+  animation: ms-fade-up var(--ms-duration-element) var(--ms-ease-out) both;
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   6. CHECKBOX — CHECK & UNCHECK
+   Uses SVG stroke-dasharray / stroke-dashoffset technique.
+   The checkmark SVG path must have a known total length.
+   Set [--ms-check-length] to match your SVG path length.
+
+   Recommended SVG structure:
+     <svg class="ms-checkbox-icon" viewBox="0 0 16 16">
+       <rect class="ms-checkbox-box" ... />
+       <path class="ms-checkbox-mark" d="M3.5 8 L6.5 11 L12.5 5" />
+     </svg>
+
+   The box and mark are animated independently so the
+   box border and the checkmark can have different timings.
+
+   Accessibility: always pair with a real <input type="checkbox">
+   that is visually hidden but focusable. The SVG is aria-hidden.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --ms-check-length: 14;  /* approximate stroke length for d="M3.5 8 L6.5 11 L12.5 5" */
+                           /* measure with path.getTotalLength() and override per SVG */
+}
+
+/* Wrapper — holds the hidden input + visible SVG */
+.ms-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Visually hidden native input — stays accessible */
+.ms-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* SVG container */
+.ms-checkbox-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  overflow: visible;
+}
+
+/* Box border — transitions fill and stroke-color */
+.ms-checkbox-box {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  rx: 3;
+  transition:
+    fill         var(--ms-check-duration, 200ms) var(--ms-ease-out),
+    stroke       var(--ms-check-duration, 200ms) var(--ms-ease-out);
+}
+
+/* Box — checked state (fill and stroke color set by project utilities) */
+.ms-checkbox input:checked ~ .ms-checkbox-icon .ms-checkbox-box {
+  fill: var(--ms-check-stroke);
+  stroke: var(--ms-check-stroke);
+}
+
+/* Checkmark path — hidden by default via dashoffset */
+.ms-checkbox-mark {
+  fill: none;
+  stroke: white;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: var(--ms-check-length);
+  stroke-dashoffset: var(--ms-check-length); /* fully hidden */
+  transition: stroke-dashoffset var(--ms-check-duration, 200ms) var(--ms-ease-out);
+}
+
+/* Checkmark — revealed on check */
+.ms-checkbox input:checked ~ .ms-checkbox-icon .ms-checkbox-mark {
+  stroke-dashoffset: 0; /* fully visible — draws from left to right */
+}
+
+/* Focus ring — keyboard accessibility */
+.ms-checkbox input:focus-visible ~ .ms-checkbox-icon {
+  outline: 2px solid var(--ms-check-stroke);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Indeterminate state — horizontal dash */
+.ms-checkbox-indeterminate {
+  fill: none;
+  stroke: white;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  opacity: 0;
+  transition: opacity var(--ms-check-duration, 200ms) var(--ms-ease-out);
+}
+.ms-checkbox input:indeterminate ~ .ms-checkbox-icon .ms-checkbox-indeterminate {
+  opacity: 1;
+}
+.ms-checkbox input:indeterminate ~ .ms-checkbox-icon .ms-checkbox-box {
+  fill: var(--ms-check-stroke);
+  stroke: var(--ms-check-stroke);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   7. PROGRESS BARS
+
+   7a. Linear progress bar
+   7b. Circular progress (SVG stroke-dashoffset)
+   7c. Custom-shaped progress (SVG path, same technique as circular)
+   ───────────────────────────────────────────────────────────── */
+
+/* ── 7a. LINEAR ── */
+
+.ms-progress-linear {
+  width: 100%;
+  height: var(--ms-progress-height);
+  background: var(--ms-progress-bg);
+  border-radius: var(--ms-progress-radius);
+  overflow: hidden;
+  position: relative;
+}
+
+.ms-progress-linear-fill {
+  height: 100%;
+  width: var(--ms-progress-value, 0%);
+  background: var(--ms-progress-fill);
+  border-radius: var(--ms-progress-radius);
+  transition: width var(--ms-duration-progress) var(--ms-ease-out);
+  transform-origin: left center;
+}
+
+/* Indeterminate linear */
+.ms-progress-linear--indeterminate .ms-progress-linear-fill {
+  width: 40%;
+  animation: ms-progress-indeterminate var(--ms-duration-slow) var(--ms-ease-in-out) infinite;
+}
+
+@keyframes ms-progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+
+/* ── 7b. CIRCULAR ── */
+
+.ms-progress-circular {
+  width: var(--ms-progress-size);
+  height: var(--ms-progress-size);
+  transform: rotate(-90deg);
+}
+
+.ms-progress-circular-track {
+  fill: none;
+  stroke: var(--ms-progress-bg);
+  stroke-width: var(--ms-progress-stroke);
+}
+
+.ms-progress-circular-fill {
+  fill: none;
+  stroke: var(--ms-progress-fill);
+  stroke-width: var(--ms-progress-stroke);
+  stroke-linecap: round;
+  --ms-circ-circumference: 125.66;
+  stroke-dasharray: var(--ms-circ-circumference);
+  stroke-dashoffset: calc(
+    var(--ms-circ-circumference) * (1 - var(--ms-progress-value, 0) / 100)
+  );
+  transition: stroke-dashoffset var(--ms-duration-progress) var(--ms-ease-out);
+}
+
+/* Indeterminate circular */
+.ms-progress-circular--indeterminate {
+  animation: ms-circular-rotate var(--ms-duration-slow) var(--ms-ease-linear) infinite;
+  transform-origin: center;
+  transform: none;
+}
+.ms-progress-circular--indeterminate .ms-progress-circular-fill {
+  stroke-dashoffset: calc(var(--ms-circ-circumference) * 0.75);
+  transition: none;
+}
+
+@keyframes ms-circular-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+
+/* ── 7c. CUSTOM-SHAPED PROGRESS ── */
+
+.ms-progress-custom {
+  overflow: visible;
+}
+
+.ms-progress-custom-track {
+  fill: none;
+  stroke: var(--ms-progress-bg);
+  stroke-width: var(--ms-progress-stroke);
+  stroke-linecap: round;
+}
+
+.ms-progress-custom-fill {
+  fill: none;
+  stroke: var(--ms-progress-fill);
+  stroke-width: var(--ms-progress-stroke);
+  stroke-linecap: round;
+  stroke-dasharray: var(--ms-custom-length, 0);
+  stroke-dashoffset: calc(
+    var(--ms-custom-length, 0) * (1 - var(--ms-progress-value, 0) / 100)
+  );
+  transition: stroke-dashoffset var(--ms-duration-progress) var(--ms-ease-out);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   8. REDUCED MOTION OVERRIDE
+   Must stay at the bottom of this file.
+   ───────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration:        0.01ms !important;
+    animation-iteration-count: 1      !important;
+    animation-delay:           0ms    !important;
+  }
+
+  .ms-forward-enter,
+  .ms-back-enter {
+    transform: none !important;
+  }
+  .ms-forward-exit-active,
+  .ms-back-exit-active {
+    transform: none !important;
+  }
+
+  .ms-field-message {
+    transform: none !important;
+  }
+
+  .ms-list-body {
+    transition: none !important;
+  }
+
+  .ms-list-icon {
+    transition: none !important;
+  }
+
+  .ms-checkbox-mark {
+    transition: none !important;
+  }
+
+  .ms-progress-linear-fill {
+    transition: none !important;
+  }
+  .ms-progress-circular-fill {
+    transition: none !important;
+  }
+  .ms-progress-custom-fill {
+    transition: none !important;
+  }
+
+  .ms-spinner {
+    display: none !important;
+  }
+
+  .ms-link::after {
+    transition: none !important;
+  }
+}

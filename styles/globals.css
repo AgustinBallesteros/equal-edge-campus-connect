@@ -1,0 +1,46 @@
+@import "tailwindcss";
+@import "./motion-system.css";
+
+/* ─── Project-level motion token overrides ──────────────────── */
+:root {
+  /* Match the project's blue accent */
+  --ms-check-stroke:    #558BF7;
+  --ms-progress-fill:   #558BF7;
+
+  /* Tighten expand slightly — cards are small */
+  --ms-duration-expand: 280ms;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Hide scrollbars globally for prototype feel */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
