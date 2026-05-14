@@ -16,7 +16,8 @@ export const MS = {
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 const SIDEBAR_W  = "20%";
-const TOPBAR_H   = 56;
+const TOPBAR_H   = 64;
+const BORDER     = "1px solid #E5E5EA";
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function Sidebar() {
@@ -26,8 +27,8 @@ function Sidebar() {
         width: SIDEBAR_W,
         height: "100vh",
         flexShrink: 0,
-        background: "#F7F7F8",
-        borderRight: "1px solid #E8E8ED",
+        background: "#F8F8FA",
+        borderRight: BORDER,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -54,7 +55,7 @@ function TopBar() {
         height: TOPBAR_H,
         flexShrink: 0,
         background: "#fff",
-        borderBottom: "1px solid #E8E8ED",
+        borderBottom: BORDER,
         display: "flex",
         alignItems: "center",
         paddingInline: 24,
