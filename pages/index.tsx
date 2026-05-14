@@ -688,7 +688,7 @@ function ProgramSnapshot() {
 // ── Dashboard root ────────────────────────────────────────────────────────────
 function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (page: NavId) => void }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
       {/* Your students */}
       <div>
         <SectionHeader title="Your students" />
