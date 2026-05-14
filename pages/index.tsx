@@ -436,32 +436,58 @@ function MyIntake() {
 }
 
 // ── My Events ────────────────────────────────────────────────────────────────
-// May 2026: starts on Friday (col 5, 0-indexed S=0), 31 days
-// May 2026: year=2026, month=4
-const CAL_TODAY = 14, CAL_FIRST_DOW = 5;
-const CAL_DAYS_IN_MONTH = 31;
+const CAL_TODAY_YEAR = 2026, CAL_TODAY_MONTH = 4 /* May, 0-indexed */, CAL_TODAY_DAY = 14;
 const CAL_DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-function buildCalendarGrid() {
-  const cells: (number | null)[] = Array(CAL_FIRST_DOW).fill(null);
-  for (let d = 1; d <= CAL_DAYS_IN_MONTH; d++) cells.push(d);
+function buildCalendarGrid(year: number, month: number) {
+  const firstDOW    = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = Array(firstDOW).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
 
-const calCells = buildCalendarGrid();
-
-// days that have events
-const eventDays = new Set(CALENDAR_EVENTS.map(e => parseInt(e.date.split("-")[2])));
-
-function MyEvents() {
+function MyEvents({ onNavigate }: { onNavigate: (page: NavId) => void }) {
+  const [calYear,  setCalYear]  = useState(CAL_TODAY_YEAR);
+  const [calMonth, setCalMonth] = useState(CAL_TODAY_MONTH);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const visibleEvents = selectedDay !== null
-    ? CALENDAR_EVENTS.filter(e => parseInt(e.date.split("-")[2]) === selectedDay)
-    : CALENDAR_EVENTS;
+  // nav helpers
+  function prevMonth() {
+    setSelectedDay(null);
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  }
+  function nextMonth() {
+    setSelectedDay(null);
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  }
 
-  const panelLabel = selectedDay !== null ? `May ${selectedDay}` : "This month";
+  const calCells   = buildCalendarGrid(calYear, calMonth);
+  const eventDays  = new Set(
+    CALENDAR_EVENTS
+      .filter(e => { const d = new Date(e.date); return d.getFullYear() === calYear && d.getMonth() === calMonth; })
+      .map(e => new Date(e.date).getDate())
+  );
+  const monthEvents = CALENDAR_EVENTS.filter(e => {
+    const d = new Date(e.date);
+    return d.getFullYear() === calYear && d.getMonth() === calMonth;
+  });
+  const visibleEvents = selectedDay !== null
+    ? monthEvents.filter(e => new Date(e.date).getDate() === selectedDay)
+    : monthEvents;
+
+  const isCurrentMonth = calYear === CAL_TODAY_YEAR && calMonth === CAL_TODAY_MONTH;
+  const panelLabel     = selectedDay !== null
+    ? `${MONTH_NAMES[calMonth]} ${selectedDay}`
+    : MONTH_NAMES[calMonth];
+
+  const navBtn = (label: string, onClick: () => void) => (
+    <button onClick={onClick} style={{ width: 22, height: 22, border: BORDER, borderRadius: 5, background: "#fff", cursor: "pointer", fontSize: 12, color: "#8E8E97", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-inter)" }}>{label}</button>
+  );
 
   return (
     <Card style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -472,8 +498,11 @@ function MyEvents() {
           {/* Mini calendar */}
           <div style={{ flexShrink: 0, width: 196 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>May 2026</span>
-              <button style={{ width: 22, height: 22, border: BORDER, borderRadius: 5, background: "#fff", cursor: "pointer", fontSize: 12, color: "#8E8E97", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-inter)" }}>›</button>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>{MONTH_NAMES[calMonth]} {calYear}</span>
+              <div style={{ display: "flex", gap: 2 }}>
+                {navBtn("‹", prevMonth)}
+                {navBtn("›", nextMonth)}
+              </div>
             </div>
             {/* Day-of-week headers */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 2 }}>
@@ -484,9 +513,9 @@ function MyEvents() {
             {/* Day cells */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: 1 }}>
               {calCells.map((day, i) => {
-                const isToday   = day === CAL_TODAY;
+                const isToday    = isCurrentMonth && day === CAL_TODAY_DAY;
                 const isSelected = day !== null && day === selectedDay;
-                const hasEvent  = day !== null && eventDays.has(day);
+                const hasEvent   = day !== null && eventDays.has(day);
                 return (
                   <div
                     key={i}
@@ -495,15 +524,15 @@ function MyEvents() {
                   >
                     <div style={{
                       width: 24, height: 24, borderRadius: "50%",
-                      background: isToday || isSelected ? "#3E4FD3" : "transparent",
+                      background: isSelected ? "#3E4FD3" : isToday ? "#EDEEFD" : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       cursor: day ? "pointer" : "default",
                     }}>
-                      <span style={{ fontSize: 11, color: isToday || isSelected ? "#fff" : day ? "#121216" : "transparent", fontWeight: isToday || isSelected ? 600 : 400 }}>
+                      <span style={{ fontSize: 11, color: isSelected ? "#fff" : isToday ? "#3E4FD3" : day ? "#121216" : "transparent", fontWeight: isToday || isSelected ? 600 : 400 }}>
                         {day ?? ""}
                       </span>
                     </div>
-                    {hasEvent && !(isToday || isSelected) && (
+                    {hasEvent && !isSelected && (
                       <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3E4FD3", marginTop: 1 }} />
                     )}
                   </div>
@@ -513,19 +542,19 @@ function MyEvents() {
           </div>
 
           {/* Event list */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
             <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: "#121216" }}>{panelLabel}</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
               {visibleEvents.length === 0 && (
-                <p style={{ margin: 0, fontSize: 12, color: "#8E8E97" }}>No events this day.</p>
+                <p style={{ margin: 0, fontSize: 12, color: "#8E8E97" }}>No events.</p>
               )}
               {visibleEvents.map(evt => {
-                const day = parseInt(evt.date.split("-")[2]);
+                const d = new Date(evt.date).getDate();
                 return (
                   <div key={evt.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                     <div style={{ width: 36, height: 36, borderRadius: 8, background: "#EDEEFD", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ fontSize: 8, fontWeight: 700, color: "#3E4FD3", lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.04em" }}>May</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#3E4FD3", lineHeight: 1.1 }}>{day}</span>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: "#3E4FD3", lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.04em" }}>{MONTH_NAMES[calMonth].slice(0,3)}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#3E4FD3", lineHeight: 1.1 }}>{d}</span>
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#121216", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{evt.title}</p>
@@ -535,6 +564,12 @@ function MyEvents() {
                 );
               })}
             </div>
+            <button
+              onClick={() => onNavigate(7)}
+              style={{ marginTop: 12, background: "none", border: "none", fontSize: 12, color: "#3E4FD3", cursor: "pointer", fontFamily: "var(--font-inter)", padding: 0, textAlign: "left" }}
+            >
+              View all events →
+            </button>
           </div>
 
         </div>
@@ -544,7 +579,7 @@ function MyEvents() {
 }
 
 // ── Dashboard root ────────────────────────────────────────────────────────────
-function DashboardContent() {
+function DashboardContent({ onNavigate }: { onNavigate: (page: NavId) => void }) {
   return (
     <div>
       <p style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "#121216" }}>Your students</p>
@@ -558,7 +593,7 @@ function DashboardContent() {
           <EngagementGraph />
           <MyAssignedActivities />
           <MyIntake />
-          <MyEvents />
+          <MyEvents onNavigate={onNavigate} />
         </div>
       </div>
     </div>
@@ -566,10 +601,10 @@ function DashboardContent() {
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page }: { page: NavId }) {
+function Content({ page, onNavigate }: { page: NavId; onNavigate: (page: NavId) => void }) {
   return (
     <div style={{ flex: 1, overflowY: "auto", background: "#fff", padding: 24 }}>
-      {page === 1 && <DashboardContent />}
+      {page === 1 && <DashboardContent onNavigate={onNavigate} />}
       {page !== 1 && (
         <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
       )}
@@ -586,7 +621,7 @@ export default function Home() {
       <Sidebar active={activeNav} onSelect={setActiveNav} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <TopBar page={activeNav} />
-        <Content page={activeNav} />
+        <Content page={activeNav} onNavigate={setActiveNav} />
       </div>
     </div>
   );
