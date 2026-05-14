@@ -662,7 +662,7 @@ function WhatsWorkingCards() {
     <div style={{ display: "flex", gap: 16 }}>
 
       {/* Card 1 — Scripts */}
-      <StatCard style={{ width: "25%", flexShrink: 0, height: 220 }}>
+      <StatCard style={{ width: "25%", flexShrink: 0 }}>
         <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Scripts</p>
         <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Most viewed by your students</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -683,7 +683,7 @@ function WhatsWorkingCards() {
       </StatCard>
 
       {/* Card 2 — Lessons */}
-      <StatCard style={{ flex: 1, height: 220 }}>
+      <StatCard style={{ flex: 1 }}>
         <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Lessons</p>
         <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Completion rate across all assigned lessons</p>
         <span style={{ display: "block", fontSize: 56, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 8 }}>{lessonsRate}%</span>
@@ -702,7 +702,7 @@ function WhatsWorkingCards() {
       </StatCard>
 
       {/* Card 3 — Messages */}
-      <StatCard style={{ width: "25%", flexShrink: 0, height: 220 }}>
+      <StatCard style={{ width: "25%", flexShrink: 0 }}>
         <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Messages</p>
         <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Conversations this month</p>
         <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
