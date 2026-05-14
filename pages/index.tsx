@@ -1,5 +1,5 @@
 import { Inter } from "next/font/google";
-import { useState, type ReactElement } from "react";
+import { useState, useEffect, type ReactElement } from "react";
 import { ALUMNI, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, type GraphViewKey } from "../data/mock";
 
 const inter = Inter({
@@ -24,6 +24,53 @@ const BORDER    = "1px solid #E5E5EA";
 // ─── Date/calendar utilities ──────────────────────────────────────────────────
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const { year: CAL_TODAY_YEAR, month: CAL_TODAY_MONTH, day: CAL_TODAY_DAY } = MOCK_TODAY;
+
+// ─── Animation helpers ────────────────────────────────────────────────────────
+
+// Vertical collapse — grid-template-rows trick, no JS height measurement needed
+function Collapse({ show, children }: { show: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateRows: show ? "1fr" : "0fr",
+      opacity: show ? 1 : 0,
+      transition: `grid-template-rows 300ms ${MS.eOut}, opacity 220ms ease`,
+    }}>
+      <div style={{ overflow: "hidden" }}>{children}</div>
+    </div>
+  );
+}
+
+// Fade-out then unmount — for flex-row slots; siblings fill space after card disappears
+function FadeSlot({ show, children, style }: { show: boolean; children: React.ReactNode; style?: React.CSSProperties }) {
+  const [mounted, setMounted] = useState(show);
+  const [vis,     setVis]     = useState(show);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 260);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column",   // lets StatCard's flex:1 fill height
+      opacity: vis ? 1 : 0,
+      transform: vis ? "scale(1)" : "scale(0.98)",
+      transition: `opacity 220ms ease, transform 220ms ease`,
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
 
 // ─── Nav tokens ───────────────────────────────────────────────────────────────
 const NAV_REST_COLOR   = "#8E8E97";
@@ -851,64 +898,70 @@ function WhatsWorkingCards({ toolsVisible }: { toolsVisible: ToolsVisible }) {
     <div style={{ display: "flex", gap: 16 }}>
 
       {/* Card 1 — Scripts */}
-      {showScripts && <StatCard style={{ width: "25%", flexShrink: 0 }}>
-        <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Scripts</p>
-        <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Most viewed by your students</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {topScripts.map(s => {
-            const views = SCRIPT_VIEWS[s.id] ?? 0;
-            const barW  = Math.round((views / maxScriptViews) * 100);
-            return (
-              <div key={s.id}>
-                <p style={{ margin: "0 0 2px", fontSize: 13, color: "#121216", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.title}</p>
-                <p style={{ margin: "0 0 4px", fontSize: 11, color: "#8E8E97" }}>{views} views</p>
-                <div style={{ height: 4, borderRadius: 2, background: "#E5E5EA" }}>
-                  <div style={{ height: "100%", width: `${barW}%`, borderRadius: 2, background: "#3E4FD3" }} />
+      <FadeSlot show={showScripts} style={{ width: "25%", flexShrink: 0 }}>
+        <StatCard>
+          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Scripts</p>
+          <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Most viewed by your students</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {topScripts.map(s => {
+              const views = SCRIPT_VIEWS[s.id] ?? 0;
+              const barW  = Math.round((views / maxScriptViews) * 100);
+              return (
+                <div key={s.id}>
+                  <p style={{ margin: "0 0 2px", fontSize: 13, color: "#121216", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.title}</p>
+                  <p style={{ margin: "0 0 4px", fontSize: 11, color: "#8E8E97" }}>{views} views</p>
+                  <div style={{ height: 4, borderRadius: 2, background: "#E5E5EA" }}>
+                    <div style={{ height: "100%", width: `${barW}%`, borderRadius: 2, background: "#3E4FD3" }} />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </StatCard>}
+              );
+            })}
+          </div>
+        </StatCard>
+      </FadeSlot>
 
       {/* Card 2 — Lessons */}
-      {showLessons && <StatCard style={{ flex: 1 }}>
-        <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Lessons</p>
-        <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Completion rate across all assigned lessons</p>
-        <span style={{ display: "block", fontSize: 56, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 8 }}>{lessonsRate}%</span>
-        <div style={{ height: 6, borderRadius: 3, background: "#E5E5EA", marginBottom: 6 }}>
-          <div style={{ height: "100%", width: `${lessonsRate}%`, borderRadius: 3, background: "#3E4FD3" }} />
-        </div>
-        <p style={{ margin: "0 0 10px", fontSize: 12, color: "#8E8E97" }}>
-          {MOCK_LESSONS_COMPLETED} completed &nbsp;·&nbsp; {lessonsNotStarted} in progress or not started &nbsp;·&nbsp; {totalAssignedLessons} total assigned
-        </p>
-        <p style={{ margin: "0 0 3px", fontSize: 12, color: "#22A062" }}>
-          Highest: {MOCK_LESSON_BEST.title} &nbsp; {MOCK_LESSON_BEST.rate}%
-        </p>
-        <p style={{ margin: 0, fontSize: 12, color: "#C72727" }}>
-          Lowest: {MOCK_LESSON_WORST.title} &nbsp; {MOCK_LESSON_WORST.rate}%
-        </p>
-      </StatCard>}
+      <FadeSlot show={showLessons} style={{ flex: 1 }}>
+        <StatCard>
+          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Lessons</p>
+          <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Completion rate across all assigned lessons</p>
+          <span style={{ display: "block", fontSize: 56, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 8 }}>{lessonsRate}%</span>
+          <div style={{ height: 6, borderRadius: 3, background: "#E5E5EA", marginBottom: 6 }}>
+            <div style={{ height: "100%", width: `${lessonsRate}%`, borderRadius: 3, background: "#3E4FD3" }} />
+          </div>
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "#8E8E97" }}>
+            {MOCK_LESSONS_COMPLETED} completed &nbsp;·&nbsp; {lessonsNotStarted} in progress or not started &nbsp;·&nbsp; {totalAssignedLessons} total assigned
+          </p>
+          <p style={{ margin: "0 0 3px", fontSize: 12, color: "#22A062" }}>
+            Highest: {MOCK_LESSON_BEST.title} &nbsp; {MOCK_LESSON_BEST.rate}%
+          </p>
+          <p style={{ margin: 0, fontSize: 12, color: "#C72727" }}>
+            Lowest: {MOCK_LESSON_WORST.title} &nbsp; {MOCK_LESSON_WORST.rate}%
+          </p>
+        </StatCard>
+      </FadeSlot>
 
       {/* Card 3 — Messages */}
-      {showMessages && <StatCard style={{ width: "25%", flexShrink: 0 }}>
-        <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Messages</p>
-        <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Conversations this month</p>
-        <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
-          <div>
-            <span style={{ display: "block", fontSize: 32, fontWeight: 700, color: "#3E4FD3", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_SENT}</span>
-            <span style={{ fontSize: 12, color: "#8E8E97" }}>sent by you</span>
+      <FadeSlot show={showMessages} style={{ width: "25%", flexShrink: 0 }}>
+        <StatCard>
+          <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Messages</p>
+          <p style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Conversations this month</p>
+          <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
+            <div>
+              <span style={{ display: "block", fontSize: 32, fontWeight: 700, color: "#3E4FD3", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_SENT}</span>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>sent by you</span>
+            </div>
+            <div>
+              <span style={{ display: "block", fontSize: 32, fontWeight: 700, color: "#121216", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_RECEIVED}</span>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>from students</span>
+            </div>
           </div>
-          <div>
-            <span style={{ display: "block", fontSize: 32, fontWeight: 700, color: "#121216", lineHeight: 1, marginBottom: 4 }}>{MOCK_MESSAGES_RECEIVED}</span>
-            <span style={{ fontSize: 12, color: "#8E8E97" }}>from students</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#22A062", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#fff", flexShrink: 0 }}>{unreadThreadCount}</span>
+            <span style={{ fontSize: 12, color: "#8E8E97" }}>unread conversations</span>
           </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#22A062", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#fff", flexShrink: 0 }}>{unreadThreadCount}</span>
-          <span style={{ fontSize: 12, color: "#8E8E97" }}>unread conversations</span>
-        </div>
-      </StatCard>}
+        </StatCard>
+      </FadeSlot>
 
     </div>
   );
@@ -968,70 +1021,74 @@ function ProgramSnapshot({ toolsVisible }: { toolsVisible: ToolsVisible }) {
   const hasBottomRow = showLessons || showOverdue;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
+
       {/* Top row — 3 stat cards × 192px */}
-      {hasTopRow && (
-        <div style={{ display: "flex", gap: 16 }}>
-          {showHealth && (
-            <StatCard style={{ height: 192 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
-                <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{programHealth}</span>
-                <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/100</span>
-              </div>
-              <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Program Health</p>
-              <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Your students{"'"} average engagement this month</p>
-              <div style={{ height: 6, borderRadius: 3, background: "#E5E5EA", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${programHealth}%`, borderRadius: 3, background: "#3E4FD3" }} />
-              </div>
-              <p style={{ margin: "10px 0 0", fontSize: 12, color: "#22A062" }}>↑ +{PROGRAM_HEALTH_DELTA} since last month</p>
-            </StatCard>
-          )}
-          {showOnTrack && (
-            <StatCard style={{ height: 192 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
-                <span style={{ fontSize: 64, fontWeight: 700, color: "#22A062", lineHeight: 1 }}>{onTrackCount}</span>
-                <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/{activated.length}</span>
-              </div>
-              <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Students on track</p>
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>for semester completion</p>
-            </StatCard>
-          )}
-          {showActRate && (
-            <StatCard style={{ height: 192 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
-                <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{activationPct}%</span>
-              </div>
-              <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Activation rate</p>
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of invited students are active</p>
-            </StatCard>
-          )}
+      <Collapse show={hasTopRow}>
+        <div style={{ paddingBottom: 16 }}>
+          <div style={{ display: "flex", gap: 16 }}>
+            <FadeSlot show={showHealth} style={{ flex: 1 }}>
+              <StatCard style={{ height: 192 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+                  <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{programHealth}</span>
+                  <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/100</span>
+                </div>
+                <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Program Health</p>
+                <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>Your students{"'"} average engagement this month</p>
+                <div style={{ height: 6, borderRadius: 3, background: "#E5E5EA", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${programHealth}%`, borderRadius: 3, background: "#3E4FD3" }} />
+                </div>
+                <p style={{ margin: "10px 0 0", fontSize: 12, color: "#22A062" }}>↑ +{PROGRAM_HEALTH_DELTA} since last month</p>
+              </StatCard>
+            </FadeSlot>
+            <FadeSlot show={showOnTrack} style={{ flex: 1 }}>
+              <StatCard style={{ height: 192 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+                  <span style={{ fontSize: 64, fontWeight: 700, color: "#22A062", lineHeight: 1 }}>{onTrackCount}</span>
+                  <span style={{ fontSize: 16, fontWeight: 400, color: "#8E8E97" }}>/{activated.length}</span>
+                </div>
+                <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Students on track</p>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>for semester completion</p>
+              </StatCard>
+            </FadeSlot>
+            <FadeSlot show={showActRate} style={{ flex: 1 }}>
+              <StatCard style={{ height: 192 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+                  <span style={{ fontSize: 64, fontWeight: 700, color: "#3E4FD3", lineHeight: 1 }}>{activationPct}%</span>
+                </div>
+                <p style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 600, color: "#121216" }}>Activation rate</p>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of invited students are active</p>
+              </StatCard>
+            </FadeSlot>
+          </div>
         </div>
-      )}
+      </Collapse>
 
       {/* Bottom row */}
-      {hasBottomRow && (
+      <Collapse show={hasBottomRow}>
         <div style={{ display: "flex", gap: 16 }}>
-          {showLessons && (
+          <FadeSlot show={showLessons} style={{ flex: 1 }}>
             <StatCard>
               <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#3E4FD3", lineHeight: 1, marginBottom: 6 }}>{MOCK_LESSONS_COMPLETED}</span>
               <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Lessons completed</p>
               <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedLessons} assigned &middot; {lessonsRate}% rate</p>
             </StatCard>
-          )}
-          {showOverdue && (
+          </FadeSlot>
+          <FadeSlot show={showOverdue} style={{ flex: 1 }}>
             <StatCard>
               <span style={{ display: "block", fontSize: 24, fontWeight: 600, color: "#C72727", lineHeight: 1, marginBottom: 6 }}>{MOCK_ACTIVITIES_OVERDUE}</span>
               <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600, color: "#8E8E97" }}>Activities overdue</p>
               <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#8E8E97" }}>of {totalAssignedActs} total &middot; {MOCK_ACTIVITIES_RESOLVED_WEEK} resolved last week</p>
             </StatCard>
-          )}
+          </FadeSlot>
           {[6, 7].map(n => (
             <Card key={n} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
             </Card>
           ))}
         </div>
-      )}
+      </Collapse>
+
     </div>
   );
 }
@@ -1056,42 +1113,39 @@ function DashboardContent({ view, onNavigate, toolsVisible }: { view: ViewTab; o
   const showWhatsWorking   = tv.scripts || tv.lessons || tv.messages;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
+
       {/* Your students */}
-      {showYourStudents && (
-        <div>
+      <Collapse show={showYourStudents}>
+        <div style={{ paddingBottom: 48 }}>
           <SectionHeader title="Your students" />
           <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
-            {hasLeftCol && (
-              <div style={{ flex: "0 0 50%", minWidth: 0, display: "flex", flexDirection: "column" }}>
-                <StudentLeaderboard onNavigate={onNavigate} />
-              </div>
-            )}
-            {hasRightCol && (
-              <div style={{ flex: hasLeftCol ? 1 : "0 0 100%", display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-                {showEngagement  && <EngagementGraph view={view} />}
-                {showActivities  && <MyAssignedActivities />}
-                {showIntake      && <MyIntake />}
-                {showEvents      && <MyEvents onNavigate={onNavigate} />}
-              </div>
-            )}
+            <FadeSlot show={hasLeftCol} style={{ flex: "0 0 50%", minWidth: 0 }}>
+              <StudentLeaderboard onNavigate={onNavigate} />
+            </FadeSlot>
+            <FadeSlot show={hasRightCol} style={{ flex: 1, minWidth: 0 }}>
+              <Collapse show={showEngagement}><div style={{ paddingBottom: 16 }}><EngagementGraph view={view} /></div></Collapse>
+              <Collapse show={showActivities}><div style={{ paddingBottom: 16 }}><MyAssignedActivities /></div></Collapse>
+              <Collapse show={showIntake}><div style={{ paddingBottom: 16 }}><MyIntake /></div></Collapse>
+              <Collapse show={showEvents}><MyEvents onNavigate={onNavigate} /></Collapse>
+            </FadeSlot>
           </div>
         </div>
-      )}
+      </Collapse>
 
       {/* Program snapshot */}
-      {showProgramSection && (
-        <div>
+      <Collapse show={showProgramSection}>
+        <div style={{ paddingBottom: 48 }}>
           <SectionHeader
             title="How is your program doing?"
             subtitle="A snapshot of engagement across all your students this month"
           />
           <ProgramSnapshot toolsVisible={toolsVisible} />
         </div>
-      )}
+      </Collapse>
 
       {/* What's working */}
-      {showWhatsWorking && (
+      <Collapse show={showWhatsWorking}>
         <div>
           <SectionHeader
             title="What's working?"
@@ -1099,7 +1153,8 @@ function DashboardContent({ view, onNavigate, toolsVisible }: { view: ViewTab; o
           />
           <WhatsWorkingCards toolsVisible={toolsVisible} />
         </div>
-      )}
+      </Collapse>
+
     </div>
   );
 }
