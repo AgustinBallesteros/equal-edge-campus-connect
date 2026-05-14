@@ -1240,28 +1240,54 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-const ROSTER_COL = "36px minmax(0,1.2fr) minmax(0,1.4fr) 92px 96px 100px 96px 64px 76px minmax(0,1fr) 64px 44px";
+// Column template — tighter date cols, more room for name/email/staff
+const ROSTER_COL = "36px minmax(0,1.3fr) minmax(0,1.5fr) 92px 86px 94px 86px 68px 72px minmax(0,1.1fr) 68px 44px";
 
-const ROSTER_HEADERS = [
-  { label: "",                    center: false },
-  { label: "Name ↑",             center: false },
-  { label: "Email",              center: false },
-  { label: "Status",             center: false },
-  { label: "Date Invited",       center: false },
-  { label: "Date Activated",     center: false },
-  { label: "Last Active",        center: false },
-  { label: "Assigned Lessons",   center: true  },
-  { label: "Assigned Activities",center: true  },
-  { label: "Staff Member",       center: false },
-  { label: "Engagement",         center: true  },
-  { label: "",                   center: false },
+type SortKey = "name" | "status" | "dateInvited" | "dateActivated" | "dateLastActive" | "lessons" | "activities" | "staff" | "engagement";
+type SortDir = "asc" | "desc";
+
+const ROSTER_HEADERS: { label: string; sortKey: SortKey | null; center: boolean }[] = [
+  { label: "",                     sortKey: null,             center: false },
+  { label: "Name",                 sortKey: "name",           center: false },
+  { label: "Email",                sortKey: null,             center: false },
+  { label: "Status",               sortKey: "status",         center: false },
+  { label: "Date Invited",         sortKey: "dateInvited",    center: false },
+  { label: "Date Activated",       sortKey: "dateActivated",  center: false },
+  { label: "Last Active",          sortKey: "dateLastActive", center: false },
+  { label: "Assigned Lessons",     sortKey: "lessons",        center: true  },
+  { label: "Assigned Activities",  sortKey: "activities",     center: true  },
+  { label: "Staff Member",         sortKey: "staff",          center: false },
+  { label: "Engagement",           sortKey: "engagement",     center: true  },
+  { label: "",                     sortKey: null,             center: false },
 ];
+
+function compareDates(a: string | null | undefined, b: string | null | undefined): number {
+  if (!a && !b) return 0;
+  if (!a) return -1;
+  if (!b) return 1;
+  return new Date(a).getTime() - new Date(b).getTime();
+}
+
+function SortArrow({ active, dir }: { active: boolean; dir: SortDir }) {
+  return (
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="none"
+      style={{ marginLeft: 3, flexShrink: 0, opacity: active ? 1 : 0.25, transition: "opacity 150ms" }}>
+      <path
+        d={dir === "asc" ? "M1 5.5l3-3 3 3" : "M1 2.5l3 3 3-3"}
+        stroke={active ? "#3E4FD3" : "#8E8E97"}
+        strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 function RosterPage() {
   const [filter,   setFilter]   = useState<RosterFilter>("All");
   const [search,   setSearch]   = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [openMenu, setOpenMenu] = useState<number | null>(null);
+  const [sortKey,  setSortKey]  = useState<SortKey>("name");
+  const [sortDir,  setSortDir]  = useState<SortDir>("asc");
 
   // Close action menu on outside click
   useEffect(() => {
@@ -1288,7 +1314,26 @@ function RosterPage() {
       }
       return true;
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "name":            cmp = a.name.localeCompare(b.name); break;
+        case "status":          cmp = a.status.localeCompare(b.status); break;
+        case "dateInvited":     cmp = compareDates(a.dateInvited, b.dateInvited); break;
+        case "dateActivated":   cmp = compareDates(a.dateActivated, b.dateActivated); break;
+        case "dateLastActive":  cmp = compareDates(a.dateLastActive ?? a.dateActivated, b.dateLastActive ?? b.dateActivated); break;
+        case "lessons":         cmp = a.assignedLessonIds.length - b.assignedLessonIds.length; break;
+        case "activities":      cmp = a.assignedActivityIds.length - b.assignedActivityIds.length; break;
+        case "staff": {
+          const sa = STAFF.find(s => s.id === a.staffMemberId)?.name ?? "";
+          const sb = STAFF.find(s => s.id === b.staffMemberId)?.name ?? "";
+          cmp = sa.localeCompare(sb);
+          break;
+        }
+        case "engagement":      cmp = a.engagementScore - b.engagementScore; break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
 
   const allChecked  = rows.length > 0 && rows.every(a => selected.has(a.id));
   const someChecked = rows.some(a => selected.has(a.id)) && !allChecked;
@@ -1379,13 +1424,22 @@ function RosterPage() {
               style={{ cursor: "pointer", accentColor: "#3E4FD3", width: 14, height: 14 }}
             />
           </div>
-          {ROSTER_HEADERS.slice(1).map(({ label, center }, i) => (
-            <div key={i} style={{
-              height: 40, display: "flex", alignItems: "center", paddingInline: 8,
-              fontSize: 11, fontWeight: 500, color: "#8E8E97",
-              justifyContent: center ? "center" : "flex-start",
-            }}>
+          {ROSTER_HEADERS.slice(1).map(({ label, sortKey: sk, center }, i) => (
+            <div key={i}
+              onClick={sk ? () => {
+                if (sortKey === sk) setSortDir(d => d === "asc" ? "desc" : "asc");
+                else { setSortKey(sk); setSortDir("asc"); }
+              } : undefined}
+              style={{
+                height: 40, display: "flex", alignItems: "center", paddingInline: 8,
+                fontSize: 11, fontWeight: 500, color: "#8E8E97",
+                justifyContent: center ? "center" : "flex-start",
+                cursor: sk ? "pointer" : "default",
+                userSelect: "none",
+              }}
+            >
               {label}
+              {sk && <SortArrow active={sortKey === sk} dir={sortKey === sk ? sortDir : "asc"} />}
             </div>
           ))}
         </div>
