@@ -649,21 +649,69 @@ function MyEvents({ onNavigate }: { onNavigate: (page: NavId) => void }) {
   );
 }
 
+// ── Section header ────────────────────────────────────────────────────────────
+function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 16 }}>
+      <span style={{ fontSize: 18, fontWeight: 600, color: "#121216", lineHeight: 1, flexShrink: 0 }}>{title}</span>
+      {subtitle && (
+        <span style={{ fontSize: 14, fontWeight: 400, color: "#8E8E97", lineHeight: 1 }}>{subtitle}</span>
+      )}
+    </div>
+  );
+}
+
+// ── Program snapshot ──────────────────────────────────────────────────────────
+function ProgramSnapshot() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Top row — 3 cards × 180px */}
+      <div style={{ display: "flex", gap: 16 }}>
+        {[1, 2, 3].map(n => (
+          <Card key={n} style={{ flex: 1, height: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
+          </Card>
+        ))}
+      </div>
+      {/* Bottom row — 4 cards × 100px */}
+      <div style={{ display: "flex", gap: 16 }}>
+        {[4, 5, 6, 7].map(n => (
+          <Card key={n} style={{ flex: 1, height: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 12, color: "#ccc" }}>Card {n} — coming soon</span>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Dashboard root ────────────────────────────────────────────────────────────
 function DashboardContent({ view, onNavigate }: { view: ViewTab; onNavigate: (page: NavId) => void }) {
   return (
-    <div>
-      <p style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600, color: "#121216" }}>Your students</p>
-      <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
-        <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <StudentLeaderboard onNavigate={onNavigate} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      {/* Your students */}
+      <div>
+        <SectionHeader title="Your students" />
+        <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
+          <div style={{ flex: "0 0 45%", minWidth: 0, display: "flex", flexDirection: "column" }}>
+            <StudentLeaderboard onNavigate={onNavigate} />
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+            <EngagementGraph view={view} />
+            <MyAssignedActivities />
+            <MyIntake />
+            <MyEvents onNavigate={onNavigate} />
+          </div>
         </div>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-          <EngagementGraph view={view} />
-          <MyAssignedActivities />
-          <MyIntake />
-          <MyEvents onNavigate={onNavigate} />
-        </div>
+      </div>
+
+      {/* Program snapshot */}
+      <div>
+        <SectionHeader
+          title="How is your program doing?"
+          subtitle="A snapshot of engagement across all your students this month"
+        />
+        <ProgramSnapshot />
       </div>
     </div>
   );
