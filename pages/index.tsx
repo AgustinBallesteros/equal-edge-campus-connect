@@ -1,5 +1,5 @@
 import { Inter } from "next/font/google";
-import { useState, useEffect, type ReactElement } from "react";
+import { useState, useEffect, useCallback, type ReactElement } from "react";
 import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, type GraphViewKey, type Alumni, type CsvRowStatus } from "../data/mock";
 
 const inter = Inter({
@@ -1618,6 +1618,127 @@ function ImportStep1Upload({ uploaded, onUpload, onRemove }: {
   );
 }
 
+// ─── Import step 2 — Map Columns ─────────────────────────────────────────────
+const SYSTEM_FIELDS = ["first_name", "last_name", "email"] as const;
+
+function ImportStep2MapColumns({ onValidChange }: { onValidChange: (valid: boolean) => void }) {
+  const headers = MOCK_CSV_ROWS[0]; // ["student_id","student_fname","student_lname","student_eduemail"]
+
+  const [mapping, setMapping] = useState<Record<string, string>>(
+    () => Object.fromEntries(headers.map(h => [h, ""]))
+  );
+
+  const usedRequired = Object.values(mapping).filter(v => v !== "" && v !== "skip");
+
+  useEffect(() => {
+    const allMapped    = SYSTEM_FIELDS.every(f => usedRequired.includes(f));
+    const noDuplicates = new Set(usedRequired).size === usedRequired.length;
+    onValidChange(allMapped && noDuplicates);
+  }, [mapping]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function setField(header: string, value: string) {
+    setMapping(prev => ({ ...prev, [header]: value }));
+  }
+
+  function isDuplicate(value: string) {
+    return value !== "" && value !== "skip" && usedRequired.filter(v => v === value).length > 1;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* Heading */}
+      <div>
+        <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: "#121216" }}>Map Columns</p>
+        <p style={{ margin: 0, fontSize: 13, color: "#8E8E97" }}>
+          Match each column from your CSV to the correct system field.
+        </p>
+      </div>
+
+      {/* Column rows */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Header labels */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 32px 1fr", gap: 8, paddingInline: 12 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>CSV Column</span>
+          <span />
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>System Field</span>
+        </div>
+
+        {headers.map(header => {
+          const value    = mapping[header];
+          const dup      = isDuplicate(value);
+          const isMapped = value !== "" && value !== "skip";
+
+          return (
+            <div key={header} style={{
+              display: "grid", gridTemplateColumns: "1fr 32px 1fr",
+              gap: 8, alignItems: "center",
+              padding: "10px 12px", borderRadius: 8, border: BORDER, background: "#fff",
+            }}>
+              {/* CSV column name */}
+              <code style={{ fontSize: 13, color: "#3E4FD3", fontFamily: "monospace" }}>{header}</code>
+
+              {/* Arrow */}
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                  stroke={isMapped ? "#3E4FD3" : "#C5C5CC"}
+                  strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 7h10M8 3l4 4-4 4"/>
+                </svg>
+              </div>
+
+              {/* Dropdown */}
+              <select
+                value={value}
+                onChange={e => setField(header, e.target.value)}
+                style={{
+                  height: 32, padding: "0 8px", borderRadius: 7, width: "100%",
+                  border: dup ? "1.5px solid #C72727" : isMapped ? "1.5px solid #3E4FD3" : BORDER,
+                  fontSize: 13, color: value === "" ? "#8E8E97" : "#121216",
+                  fontFamily: "var(--font-inter)", background: "#fff",
+                  outline: "none", cursor: "pointer",
+                }}
+              >
+                <option value="" disabled>Select field…</option>
+                {SYSTEM_FIELDS.map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+                <option value="skip">— Skip column —</option>
+              </select>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Required-field coverage pills */}
+      <div style={{ display: "flex", gap: 6 }}>
+        {SYSTEM_FIELDS.map(f => {
+          const mapped = usedRequired.includes(f) && !isDuplicate(f);
+          return (
+            <span key={f} style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              height: 26, paddingInline: 10, borderRadius: 20,
+              fontSize: 12, fontWeight: 500,
+              background: mapped ? "#ECFDF5" : "#F8F8FA",
+              color: mapped ? "#22A062" : "#8E8E97",
+              border: `1px solid ${mapped ? "#A7F3D0" : "#E8E8EC"}`,
+              transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}, border-color ${MS.dFast} ${MS.eOut}`,
+            }}>
+              {mapped && (
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                  <path d="M1.5 4.5l2 2L7.5 2" stroke="#22A062" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+              {f}
+            </span>
+          );
+        })}
+      </div>
+
+    </div>
+  );
+}
+
 // ─── CSV Import shell ─────────────────────────────────────────────────────────
 const IMPORT_STEPS = ["Upload File", "Map Columns", "Review", "Import"] as const;
 type ImportStep = 0 | 1 | 2 | 3;
@@ -1633,6 +1754,8 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
   const [vis,           setVis]           = useState(true);
   const [slideFrom,     setSlideFrom]     = useState<"left" | "right">("right");
   const [fileUploaded,  setFileUploaded]  = useState(false);
+  const [step2Ready,    setStep2Ready]    = useState(false);
+  const handleStep2Valid = useCallback((v: boolean) => setStep2Ready(v), []);
 
   function navigate(next: ImportStep) {
     if (next === step) return;
@@ -1753,7 +1876,14 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         )}
-        {contentStep !== 0 && (
+        {contentStep === 1 && (
+          <div style={{ minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20%" }}>
+            <div style={{ width: "100%" }}>
+              <ImportStep2MapColumns onValidChange={handleStep2Valid} />
+            </div>
+          </div>
+        )}
+        {contentStep > 1 && (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 13, color: "#C5C5CC" }}>
               Step {contentStep + 1} · {IMPORT_STEPS[contentStep]}
@@ -1797,12 +1927,12 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
           {step < 3
             ? <button
                 onClick={() => navigate((step + 1) as ImportStep)}
-                disabled={step === 0 && !fileUploaded}
+                disabled={(step === 0 && !fileUploaded) || (step === 1 && !step2Ready)}
                 style={{
                   ...btnBase,
-                  background: step === 0 && !fileUploaded ? "#C5C5CC" : "#3E4FD3",
+                  background: (step === 0 && !fileUploaded) || (step === 1 && !step2Ready) ? "#C5C5CC" : "#3E4FD3",
                   color: "#fff",
-                  cursor: step === 0 && !fileUploaded ? "not-allowed" : "pointer",
+                  cursor: (step === 0 && !fileUploaded) || (step === 1 && !step2Ready) ? "not-allowed" : "pointer",
                 }}>
                 Continue
               </button>
