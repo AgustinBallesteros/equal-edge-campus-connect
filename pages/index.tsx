@@ -2208,11 +2208,11 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
           <div style={{ fontSize: 13, color: "#8E8E97", textAlign: "center" }}>
             <span style={{ color: "#22A062", fontWeight: 500 }}>{liveCounts.toImport} student{liveCounts.toImport !== 1 ? "s" : ""}</span>
             {" "}will be added
-            {" · "}
-            <span style={{ color: "#C28F11", fontWeight: 500 }}>{liveCounts.skipped} row{liveCounts.skipped !== 1 ? "s" : ""}</span>
-            {" "}will be skipped
+            {liveCounts.skipped > 0 && (
+              <> · <span style={{ color: "#C72727", fontWeight: 500 }}>{liveCounts.skipped} missing email</span></>
+            )}
             {liveCounts.duplicates > 0 && (
-              <> · <span style={{ color: "#C72727", fontWeight: 500 }}>{liveCounts.duplicates} duplicate{liveCounts.duplicates !== 1 ? "s" : ""}</span> detected</>
+              <> · <span style={{ color: "#C28F11", fontWeight: 500 }}>{liveCounts.duplicates} duplicate{liveCounts.duplicates !== 1 ? "s" : ""}</span></>
             )}
           </div>
         )}
