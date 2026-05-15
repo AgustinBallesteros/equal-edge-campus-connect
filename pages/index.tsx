@@ -1774,22 +1774,28 @@ function ImportStep3Review({
   // Columns to show — SYSTEM_FIELDS order, only those present in mapping
   const columns = SYSTEM_FIELDS.filter(f => Object.values(mapping).includes(f));
 
+  function recompute(list: ReviewRow[]): ReviewRow[] {
+    const emailCount: Record<string, number> = {};
+    list.forEach(r => {
+      const e = r.cells["email"]?.trim().toLowerCase();
+      if (e) emailCount[e] = (emailCount[e] ?? 0) + 1;
+    });
+    return list.map(r => {
+      if (SYSTEM_FIELDS.some(f => !r.cells[f]?.trim())) return { ...r, status: "skipped" as CsvRowStatus };
+      const e = r.cells["email"]?.trim().toLowerCase();
+      if (e && emailCount[e] > 1) return { ...r, status: "duplicate" as CsvRowStatus };
+      return { ...r, status: "ok" as CsvRowStatus };
+    });
+  }
+
   function updateCell(csvIdx: number, field: string, value: string) {
-    setRows(prev => prev.map(r => {
-      if (r.csvIdx !== csvIdx) return r;
-      const newCells = { ...r.cells, [field]: value };
-      // Auto-heal skipped rows when all required fields are now filled
-      let newStatus = r.status;
-      if (r.status === "skipped") {
-        const allFilled = SYSTEM_FIELDS.every(f => newCells[f]?.trim() !== "");
-        if (allFilled) newStatus = "ok";
-      }
-      return { ...r, cells: newCells, status: newStatus };
-    }));
+    setRows(prev => recompute(
+      prev.map(r => r.csvIdx === csvIdx ? { ...r, cells: { ...r.cells, [field]: value } } : r)
+    ));
   }
 
   function removeRow(csvIdx: number) {
-    setRows(prev => prev.filter(r => r.csvIdx !== csvIdx));
+    setRows(prev => recompute(prev.filter(r => r.csvIdx !== csvIdx)));
   }
 
   const colTemplate = `${columns.map(() => "1fr").join(" ")} 108px 36px`;
