@@ -2850,6 +2850,35 @@ function LessonsPage() {
         </div>
       </div>
 
+      {/* Status bar */}
+      <div style={{
+        flexShrink: 0, borderTop: BORDER, background: "#fff",
+        padding: "10px 24px", display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 13, color: "#8E8E97",
+      }}>
+        {activeCategory === null ? (
+          <>Total <span style={{ fontWeight: 600, color: "#121216", marginInline: 4 }}>{LESSONS.length}</span> lessons</>
+        ) : (
+          <>
+            Showing <span style={{ fontWeight: 600, color: "#121216", marginInline: 4 }}>{visible.length}</span>
+            {" "}of{" "}
+            <span style={{ fontWeight: 600, color: "#121216", marginInline: 4 }}>{LESSONS.length}</span>
+            {" "}lessons
+            <span style={{ marginInline: 8, color: "#D0D0D8" }}>·</span>
+            <button
+              onClick={() => setActiveCategory(null)}
+              style={{
+                background: "none", border: "none", padding: 0,
+                fontSize: 13, fontWeight: 500, color: "#3E4FD3",
+                cursor: "pointer", fontFamily: "var(--font-inter)",
+              }}
+            >
+              Clear filter to see all
+            </button>
+          </>
+        )}
+      </div>
+
     </div>
   );
 }
