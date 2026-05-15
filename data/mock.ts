@@ -668,7 +668,7 @@ export const MOCK_CSV_ROW_STATUS: CsvRowStatus[] = [
   "ok",        // Tyler Nguyen
   "ok",        // Amara Osei
   "ok",        // Jordan Blake
-  "duplicate", // Sofia Reyes — email already in roster
+  "ok",        // Sofia Reyes
   "ok",        // Caleb Morton
   "ok",        // Imani Foster
   "ok",        // Ethan Caldwell
