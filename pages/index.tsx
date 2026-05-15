@@ -1621,24 +1621,12 @@ function ImportStep1Upload({ uploaded, onUpload, onRemove }: {
 // ─── Import step 2 — Map Columns ─────────────────────────────────────────────
 const SYSTEM_FIELDS = ["first_name", "last_name", "email"] as const;
 
-function ImportStep2MapColumns({ onValidChange }: { onValidChange: (valid: boolean) => void }) {
-  const headers = MOCK_CSV_ROWS[0]; // ["student_id","student_fname","student_lname","student_eduemail"]
-
-  const [mapping, setMapping] = useState<Record<string, string>>(
-    () => Object.fromEntries(headers.map(h => [h, ""]))
-  );
-
+function ImportStep2MapColumns({ mapping, onChange }: {
+  mapping: Record<string, string>;
+  onChange: (header: string, value: string) => void;
+}) {
+  const headers = MOCK_CSV_ROWS[0];
   const usedRequired = Object.values(mapping).filter(v => v !== "" && v !== "skip");
-
-  useEffect(() => {
-    const allMapped    = SYSTEM_FIELDS.every(f => usedRequired.includes(f));
-    const noDuplicates = new Set(usedRequired).size === usedRequired.length;
-    onValidChange(allMapped && noDuplicates);
-  }, [mapping]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function setField(header: string, value: string) {
-    setMapping(prev => ({ ...prev, [header]: value }));
-  }
 
   function isDuplicate(value: string) {
     return value !== "" && value !== "skip" && usedRequired.filter(v => v === value).length > 1;
@@ -1690,7 +1678,7 @@ function ImportStep2MapColumns({ onValidChange }: { onValidChange: (valid: boole
               {/* Dropdown */}
               <select
                 value={value}
-                onChange={e => setField(header, e.target.value)}
+                onChange={e => onChange(header, e.target.value)}
                 style={{
                   height: 32, padding: "0 8px", borderRadius: 7, width: "100%",
                   border: dup ? "1.5px solid #C72727" : isMapped ? "1.5px solid #3E4FD3" : BORDER,
@@ -1739,6 +1727,204 @@ function ImportStep2MapColumns({ onValidChange }: { onValidChange: (valid: boole
   );
 }
 
+// ─── Import step 3 — Review ──────────────────────────────────────────────────
+
+type ReviewRow = {
+  csvIdx:  number;
+  cells:   Record<string, string>;
+  status:  CsvRowStatus;
+};
+
+const COL_LABELS: Record<string, string> = {
+  first_name: "First Name",
+  last_name:  "Last Name",
+  email:      "Email",
+};
+
+function ImportStep3Review({
+  mapping,
+  onCountsChange,
+}: {
+  mapping: Record<string, string>;
+  onCountsChange: (c: { toImport: number; skipped: number; duplicates: number }) => void;
+}) {
+  const [rows, setRows] = useState<ReviewRow[]>(() =>
+    MOCK_CSV_ROWS.slice(1).map((row, i) => {
+      const cells: Record<string, string> = {};
+      MOCK_CSV_ROWS[0].forEach((header, colIdx) => {
+        const field = mapping[header];
+        if (field && field !== "skip") cells[field] = row[colIdx];
+      });
+      return { csvIdx: i, cells, status: MOCK_CSV_ROW_STATUS[i] };
+    })
+  );
+
+  const [editCell,   setEditCell]   = useState<{ idx: number; field: string } | null>(null);
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+
+  // Keep shell footer counts in sync
+  useEffect(() => {
+    onCountsChange({
+      toImport:   rows.filter(r => r.status === "ok").length,
+      duplicates: rows.filter(r => r.status === "duplicate").length,
+      skipped:    rows.filter(r => r.status === "skipped").length,
+    });
+  }, [rows, onCountsChange]);
+
+  // Columns to show — SYSTEM_FIELDS order, only those present in mapping
+  const columns = SYSTEM_FIELDS.filter(f => Object.values(mapping).includes(f));
+
+  function updateCell(csvIdx: number, field: string, value: string) {
+    setRows(prev => prev.map(r => {
+      if (r.csvIdx !== csvIdx) return r;
+      const newCells = { ...r.cells, [field]: value };
+      // Auto-heal skipped rows when all required fields are now filled
+      let newStatus = r.status;
+      if (r.status === "skipped") {
+        const allFilled = SYSTEM_FIELDS.every(f => newCells[f]?.trim() !== "");
+        if (allFilled) newStatus = "ok";
+      }
+      return { ...r, cells: newCells, status: newStatus };
+    }));
+  }
+
+  function removeRow(csvIdx: number) {
+    setRows(prev => prev.filter(r => r.csvIdx !== csvIdx));
+  }
+
+  const colTemplate = `${columns.map(() => "1fr").join(" ")} 108px 36px`;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "24px 0" }}>
+
+      {/* Heading */}
+      <div>
+        <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: "#121216" }}>Review Import</p>
+        <p style={{ margin: 0, fontSize: 13, color: "#8E8E97" }}>
+          Click any cell to edit inline. Remove duplicates or fix errors before continuing.
+        </p>
+      </div>
+
+      {/* Table */}
+      <div style={{ border: BORDER, borderRadius: 10, overflow: "hidden" }}>
+
+        {/* Header row */}
+        <div style={{
+          display: "grid", gridTemplateColumns: colTemplate,
+          background: "#F8F8FA", borderBottom: BORDER,
+        }}>
+          {columns.map(col => (
+            <div key={col} style={{ padding: "9px 12px", fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {COL_LABELS[col] ?? col}
+            </div>
+          ))}
+          <div style={{ padding: "9px 12px", fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</div>
+          <div />
+        </div>
+
+        {/* Data rows */}
+        {rows.map((row, rowI) => {
+          const isHovered = hoveredRow === row.csvIdx;
+          const baseBg    = row.status === "duplicate" ? "#FFFBEB"
+                          : row.status === "skipped"   ? "#FEF2F2"
+                          : "#fff";
+          const hoverBg   = row.status === "duplicate" ? "#FFF8E1"
+                          : row.status === "skipped"   ? "#FDEAEA"
+                          : "#F8F8FA";
+          return (
+            <div
+              key={row.csvIdx}
+              onMouseEnter={() => setHoveredRow(row.csvIdx)}
+              onMouseLeave={() => setHoveredRow(null)}
+              style={{
+                display: "grid", gridTemplateColumns: colTemplate,
+                alignItems: "center",
+                background: isHovered ? hoverBg : baseBg,
+                borderBottom: rowI < rows.length - 1 ? BORDER : undefined,
+                transition: "background 120ms ease",
+              }}
+            >
+              {/* Editable cells */}
+              {columns.map(field => {
+                const isEditing = editCell?.idx === row.csvIdx && editCell?.field === field;
+                const val = row.cells[field] ?? "";
+                return (
+                  <div
+                    key={field}
+                    onClick={() => !isEditing && setEditCell({ idx: row.csvIdx, field })}
+                    style={{ padding: "7px 12px", cursor: "text", minWidth: 0 }}
+                  >
+                    {isEditing ? (
+                      <input
+                        autoFocus
+                        value={val}
+                        onChange={e => updateCell(row.csvIdx, field, e.target.value)}
+                        onBlur={() => setEditCell(null)}
+                        onKeyDown={e => { if (e.key === "Enter" || e.key === "Escape") setEditCell(null); }}
+                        style={{
+                          width: "100%", padding: "2px 6px",
+                          border: "1.5px solid #3E4FD3", borderRadius: 5,
+                          fontSize: 13, fontFamily: "var(--font-inter)",
+                          outline: "none", background: "#fff", color: "#121216",
+                        }}
+                      />
+                    ) : (
+                      <span style={{
+                        fontSize: 13,
+                        color: val ? "#121216" : "#C5C5CC",
+                        display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {val || "—"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Status badge */}
+              <div style={{ padding: "7px 12px" }}>
+                {row.status !== "ok" && (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center",
+                    height: 22, paddingInline: 8, borderRadius: 20,
+                    fontSize: 11, fontWeight: 500, whiteSpace: "nowrap",
+                    ...(row.status === "duplicate"
+                      ? { background: "#FFFBEB", color: "#92400E", border: "1px solid #FDE68A" }
+                      : { background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }),
+                  }}>
+                    {row.status === "duplicate" ? "Duplicate" : "Missing email"}
+                  </span>
+                )}
+              </div>
+
+              {/* Remove button */}
+              <div style={{ padding: "7px 8px", display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={() => removeRow(row.csvIdx)}
+                  title="Remove row"
+                  style={{
+                    width: 22, height: 22, borderRadius: 5,
+                    border: "none", background: isHovered ? "#EDEDF2" : "transparent",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "#8E8E97", transition: "background 120ms ease, color 120ms ease",
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#E0E0EA"; (e.currentTarget as HTMLButtonElement).style.color = "#C72727"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = isHovered ? "#EDEDF2" : "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "#8E8E97"; }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <path d="M1.5 1.5l7 7M8.5 1.5l-7 7"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── CSV Import shell ─────────────────────────────────────────────────────────
 const IMPORT_STEPS = ["Upload File", "Map Columns", "Review", "Import"] as const;
 type ImportStep = 0 | 1 | 2 | 3;
@@ -1754,8 +1940,21 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
   const [vis,           setVis]           = useState(true);
   const [slideFrom,     setSlideFrom]     = useState<"left" | "right">("right");
   const [fileUploaded,  setFileUploaded]  = useState(false);
-  const [step2Ready,    setStep2Ready]    = useState(false);
-  const handleStep2Valid = useCallback((v: boolean) => setStep2Ready(v), []);
+  const [mapping, setMapping] = useState<Record<string, string>>(
+    () => Object.fromEntries(MOCK_CSV_ROWS[0].map(h => [h, ""]))
+  );
+  const mappedRequired = Object.values(mapping).filter(v => v !== "" && v !== "skip");
+  const step2Ready = SYSTEM_FIELDS.every(f => mappedRequired.includes(f)) &&
+    new Set(mappedRequired).size === mappedRequired.length;
+  const [liveCounts, setLiveCounts] = useState({
+    toImport:   IMPORT_PREVIEW.toImport,
+    skipped:    IMPORT_PREVIEW.skipped,
+    duplicates: IMPORT_PREVIEW.duplicates,
+  });
+  const handleCountsChange = useCallback(
+    (c: { toImport: number; skipped: number; duplicates: number }) => setLiveCounts(c),
+    []
+  );
 
   function navigate(next: ImportStep) {
     if (next === step) return;
@@ -1879,15 +2078,21 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
         {contentStep === 1 && (
           <div style={{ minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20%" }}>
             <div style={{ width: "100%" }}>
-              <ImportStep2MapColumns onValidChange={handleStep2Valid} />
+              <ImportStep2MapColumns
+                mapping={mapping}
+                onChange={(h, v) => setMapping(prev => ({ ...prev, [h]: v }))}
+              />
             </div>
           </div>
         )}
-        {contentStep > 1 && (
+        {contentStep === 2 && (
+          <div style={{ padding: "0 20%" }}>
+            <ImportStep3Review mapping={mapping} onCountsChange={handleCountsChange} />
+          </div>
+        )}
+        {contentStep === 3 && (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 13, color: "#C5C5CC" }}>
-              Step {contentStep + 1} · {IMPORT_STEPS[contentStep]}
-            </span>
+            <span style={{ fontSize: 13, color: "#C5C5CC" }}>Step 4 · Import</span>
           </div>
         )}
       </div>
@@ -1911,13 +2116,13 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
         {/* Centre — info text (steps 1 & 2 only) */}
         {showInfo && (
           <div style={{ fontSize: 13, color: "#8E8E97", textAlign: "center" }}>
-            <span style={{ color: "#22A062", fontWeight: 500 }}>{IMPORT_PREVIEW.toImport} students</span>
+            <span style={{ color: "#22A062", fontWeight: 500 }}>{liveCounts.toImport} student{liveCounts.toImport !== 1 ? "s" : ""}</span>
             {" "}will be added
             {" · "}
-            <span style={{ color: "#C28F11", fontWeight: 500 }}>{IMPORT_PREVIEW.skipped} row{IMPORT_PREVIEW.skipped !== 1 ? "s" : ""}</span>
+            <span style={{ color: "#C28F11", fontWeight: 500 }}>{liveCounts.skipped} row{liveCounts.skipped !== 1 ? "s" : ""}</span>
             {" "}will be skipped
-            {contentStep === 2 && IMPORT_PREVIEW.duplicates > 0 && (
-              <> · <span style={{ color: "#C72727", fontWeight: 500 }}>{IMPORT_PREVIEW.duplicates} duplicate{IMPORT_PREVIEW.duplicates !== 1 ? "s" : ""}</span> detected</>
+            {liveCounts.duplicates > 0 && (
+              <> · <span style={{ color: "#C72727", fontWeight: 500 }}>{liveCounts.duplicates} duplicate{liveCounts.duplicates !== 1 ? "s" : ""}</span> detected</>
             )}
           </div>
         )}
@@ -1937,7 +2142,7 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
                 Continue
               </button>
             : <button style={{ ...btnBase, background: "#3E4FD3", color: "#fff" }}>
-                Import {IMPORT_PREVIEW.toImport} Students
+                Import {liveCounts.toImport} Student{liveCounts.toImport !== 1 ? "s" : ""}
               </button>
           }
         </div>
