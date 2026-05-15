@@ -1471,6 +1471,153 @@ function SortArrow({ active, dir }: { active: boolean; dir: SortDir }) {
   );
 }
 
+// ─── Import step 1 — Upload File ─────────────────────────────────────────────
+function ImportStep1Upload({ uploaded, onUpload, onRemove }: {
+  uploaded: boolean;
+  onUpload: () => void;
+  onRemove: () => void;
+}) {
+  const MOCK_FILENAME = "students_spring2026.csv";
+  const MOCK_FILESIZE = "1.4 KB";
+  const MOCK_ROWS     = MOCK_CSV_ROWS.length; // 16
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+      {/* ── Drop zone ── */}
+      {!uploaded ? (
+        <div style={{
+          borderRadius: 12, border: "2px dashed #3E4FD3",
+          background: "#F0F1FD", padding: "40px 24px",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+        }}>
+          {/* Upload icon */}
+          <div style={{
+            width: 44, height: 44, borderRadius: "50%",
+            border: "1.5px solid #3E4FD3",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+              stroke="#3E4FD3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 12V4M4 7l4-4 4 4"/>
+            </svg>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#121216" }}>
+              Drag and drop your CSV file here
+            </p>
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#8E8E97" }}>or</p>
+          </div>
+          <button
+            onClick={onUpload}
+            style={{
+              height: 36, paddingInline: 20, borderRadius: 8, border: "none",
+              background: "#3E4FD3", color: "#fff",
+              fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+            }}>
+            Browse Files
+          </button>
+          <p style={{ margin: 0, fontSize: 12, color: "#8E8E97" }}>
+            Supports .csv files only · Max 10MB
+          </p>
+        </div>
+      ) : (
+        /* ── Uploaded file card ── */
+        <div style={{
+          borderRadius: 12, border: "1.5px solid #3E4FD3",
+          background: "#F0F1FD", padding: "16px 20px",
+          display: "flex", alignItems: "center", gap: 14,
+        }}>
+          {/* File icon */}
+          <div style={{
+            width: 40, height: 40, borderRadius: 8, background: "#fff",
+            border: BORDER, flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
+              stroke="#3E4FD3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 2H5a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V7M10 2l4 4M10 2v4h4"/>
+              <path d="M6 10h6M6 13h4"/>
+            </svg>
+          </div>
+          {/* File info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#121216" }}>
+              {MOCK_FILENAME}
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#8E8E97" }}>
+              {MOCK_FILESIZE} · {MOCK_ROWS} rows detected
+            </p>
+          </div>
+          {/* Remove */}
+          <button
+            onClick={onRemove}
+            style={{
+              width: 28, height: 28, borderRadius: 6, border: BORDER,
+              background: "#fff", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+              stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M1 1l8 8M9 1L1 9"/>
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* ── CSV Template banner ── */}
+      <div style={{
+        borderRadius: 10, border: BORDER, background: "#FAFAFA",
+        padding: "14px 16px", display: "flex", alignItems: "center", gap: 12,
+      }}>
+        {/* Document icon */}
+        <div style={{
+          width: 34, height: 34, borderRadius: 7, background: "#E8E8EC", flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+            stroke="#8E8E97" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6M9 2l4 4M9 2v4h4"/>
+          </svg>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#121216" }}>Download CSV Template</p>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#8E8E97" }}>
+            Use our template to ensure your CSV is formatted correctly
+          </p>
+        </div>
+        <button style={{
+          height: 32, paddingInline: 14, borderRadius: 7, border: BORDER,
+          background: "#fff", color: "#121216",
+          fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer", flexShrink: 0,
+        }}>
+          Download
+        </button>
+      </div>
+
+      {/* ── Required columns info ── */}
+      <div style={{
+        borderRadius: 10, border: BORDER, background: "#FAFAFA", padding: "14px 16px",
+      }}>
+        <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: "#121216" }}>Required CSV columns</p>
+        <p style={{ margin: "0 0 10px", fontSize: 12, color: "#8E8E97" }}>
+          {["student_fname", "student_lname", "student_eduemail"].map((col, i, arr) => (
+            <span key={col}>
+              <code style={{ fontFamily: "monospace", color: "#3E4FD3" }}>{col}</code>
+              {i < arr.length - 1 && <span style={{ margin: "0 6px", color: "#C5C5CC" }}>·</span>}
+            </span>
+          ))}
+        </p>
+        <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: "#121216" }}>Optional columns</p>
+        <p style={{ margin: 0, fontSize: 12, color: "#8E8E97" }}>
+          Any additional columns will be ignored during import
+        </p>
+      </div>
+
+    </div>
+  );
+}
+
 // ─── CSV Import shell ─────────────────────────────────────────────────────────
 const IMPORT_STEPS = ["Upload File", "Map Columns", "Review", "Import"] as const;
 type ImportStep = 0 | 1 | 2 | 3;
@@ -1485,6 +1632,7 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
   const [contentStep,   setContentStep]   = useState<ImportStep>(0); // content area (lags)
   const [vis,           setVis]           = useState(true);
   const [slideFrom,     setSlideFrom]     = useState<"left" | "right">("right");
+  const [fileUploaded,  setFileUploaded]  = useState(false);
 
   function navigate(next: ImportStep) {
     if (next === step) return;
@@ -1589,14 +1737,27 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
 
       {/* ── Step content ── */}
       <div style={{
-        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+        flex: 1, overflowY: "auto",
         opacity: vis ? 1 : 0,
         transform: vis ? "translateX(0)" : slideFrom === "right" ? "translateX(16px)" : "translateX(-16px)",
         transition: "opacity 160ms ease, transform 160ms ease",
       }}>
-        <span style={{ fontSize: 13, color: "#C5C5CC" }}>
-          Step {contentStep + 1} · {IMPORT_STEPS[contentStep]}
-        </span>
+        {contentStep === 0 && (
+          <div style={{ padding: "160px 20%" }}>
+            <ImportStep1Upload
+              uploaded={fileUploaded}
+              onUpload={() => setFileUploaded(true)}
+              onRemove={() => setFileUploaded(false)}
+            />
+          </div>
+        )}
+        {contentStep !== 0 && (
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 13, color: "#C5C5CC" }}>
+              Step {contentStep + 1} · {IMPORT_STEPS[contentStep]}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Footer ── */}
@@ -1632,7 +1793,15 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
         {/* Right — Continue / Import */}
         <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
           {step < 3
-            ? <button onClick={() => navigate((step + 1) as ImportStep)} style={{ ...btnBase, background: "#3E4FD3", color: "#fff" }}>
+            ? <button
+                onClick={() => navigate((step + 1) as ImportStep)}
+                disabled={step === 0 && !fileUploaded}
+                style={{
+                  ...btnBase,
+                  background: step === 0 && !fileUploaded ? "#C5C5CC" : "#3E4FD3",
+                  color: "#fff",
+                  cursor: step === 0 && !fileUploaded ? "not-allowed" : "pointer",
+                }}>
                 Continue
               </button>
             : <button style={{ ...btnBase, background: "#3E4FD3", color: "#fff" }}>
