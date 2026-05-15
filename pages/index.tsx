@@ -1472,11 +1472,36 @@ function SortArrow({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 // ─── CSV Import shell ─────────────────────────────────────────────────────────
-const IMPORT_STEPS = ["Upload File", "Map Columns", "Review Data", "Confirm Import"] as const;
+const IMPORT_STEPS = ["Upload File", "Map Columns", "Review", "Import"] as const;
 type ImportStep = 0 | 1 | 2 | 3;
 
+// Placeholder preview stats — replaced with real parsed data in a later pass
+const IMPORT_PREVIEW = { toImport: 24, skipped: 3, duplicates: 1 };
+
 function RosterImportShell({ onClose }: { onClose: () => void }) {
-  const [step, setStep] = useState<ImportStep>(0);
+  const [step,        setStep]        = useState<ImportStep>(0); // drives step bar + nav logic
+  const [contentStep, setContentStep] = useState<ImportStep>(0); // drives content (lags during transition)
+  const [vis,         setVis]         = useState(true);
+  const [slideFrom,   setSlideFrom]   = useState<"left" | "right">("right");
+
+  function navigate(next: ImportStep) {
+    if (next === step) return;
+    const fwd = next > step;
+    setStep(next);           // step bar updates immediately
+    setVis(false);
+    setTimeout(() => {
+      setSlideFrom(fwd ? "right" : "left");
+      setContentStep(next);
+      requestAnimationFrame(() => setVis(true));
+    }, 160);
+  }
+
+  const showInfo = contentStep === 1 || contentStep === 2;
+
+  const btnBase: React.CSSProperties = {
+    height: 36, paddingInline: 16, borderRadius: 8, border: "none",
+    fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+  };
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -1484,22 +1509,21 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
       {/* ── Step bar ── */}
       <div style={{
         flexShrink: 0, display: "flex", alignItems: "center",
-        padding: "0 24px", height: 52, borderBottom: BORDER, gap: 0,
+        padding: "0 24px", height: 52, borderBottom: BORDER,
       }}>
         {IMPORT_STEPS.map((label, i) => {
-          const idx   = i as ImportStep;
-          const done  = step > idx;
+          const idx    = i as ImportStep;
+          const done   = step > idx;
           const active = step === idx;
-          const last  = i === IMPORT_STEPS.length - 1;
+          const last   = i === IMPORT_STEPS.length - 1;
           return (
             <div key={label} style={{ display: "flex", alignItems: "center" }}>
-              {/* Step pill */}
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {/* Circle */}
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  background: done ? "#3E4FD3" : active ? "#3E4FD3" : "#E8E8EC",
+                  background: done || active ? "#3E4FD3" : "#E8E8EC",
                   transition: `background ${MS.dFast} ${MS.eOut}`,
                 }}>
                   {done
@@ -1520,7 +1544,7 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
               {/* Connector */}
               {!last && (
                 <div style={{
-                  width: 32, height: 1, marginInline: 8, flexShrink: 0,
+                  width: 32, height: 1, marginInline: 10, flexShrink: 0,
                   background: done ? "#3E4FD3" : "#E8E8EC",
                   transition: `background ${MS.dFast} ${MS.eOut}`,
                 }} />
@@ -1529,7 +1553,6 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
           );
         })}
 
-        {/* Spacer + cancel */}
         <div style={{ flex: 1 }} />
         <button onClick={onClose} style={{
           height: 32, paddingInline: 14, borderRadius: 7, border: BORDER,
@@ -1540,41 +1563,59 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      {/* ── Step content (placeholder) ── */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 13, color: "#C5C5CC" }}>Step {step + 1} · {IMPORT_STEPS[step]}</span>
+      {/* ── Step content ── */}
+      <div style={{
+        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+        opacity: vis ? 1 : 0,
+        transform: vis ? "translateX(0)" : slideFrom === "right" ? "translateX(16px)" : "translateX(-16px)",
+        transition: "opacity 160ms ease, transform 160ms ease",
+      }}>
+        <span style={{ fontSize: 13, color: "#C5C5CC" }}>
+          Step {contentStep + 1} · {IMPORT_STEPS[contentStep]}
+        </span>
       </div>
 
-      {/* ── Footer nav ── */}
+      {/* ── Footer ── */}
       <div style={{
         flexShrink: 0, borderTop: BORDER,
-        padding: "12px 24px", display: "flex", justifyContent: "flex-end", gap: 8,
+        padding: "12px 24px", display: "flex", alignItems: "center",
       }}>
-        {step > 0 && (
-          <button onClick={() => setStep((step - 1) as ImportStep)} style={{
-            height: 36, paddingInline: 16, borderRadius: 8, border: BORDER,
-            background: "#fff", color: "#121216",
-            fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
-          }}>
-            Back
-          </button>
+        {/* Left — Back */}
+        <div style={{ flex: 1 }}>
+          {step > 0 && (
+            <button onClick={() => navigate((step - 1) as ImportStep)} style={{
+              ...btnBase, border: BORDER, background: "#fff", color: "#121216",
+            }}>
+              Back
+            </button>
+          )}
+        </div>
+
+        {/* Centre — info text (steps 1 & 2 only) */}
+        {showInfo && (
+          <div style={{ fontSize: 13, color: "#8E8E97", textAlign: "center" }}>
+            <span style={{ color: "#22A062", fontWeight: 500 }}>{IMPORT_PREVIEW.toImport} students</span>
+            {" "}will be added
+            {" · "}
+            <span style={{ color: "#C28F11", fontWeight: 500 }}>{IMPORT_PREVIEW.skipped} row{IMPORT_PREVIEW.skipped !== 1 ? "s" : ""}</span>
+            {" "}will be skipped
+            {contentStep === 2 && IMPORT_PREVIEW.duplicates > 0 && (
+              <> · <span style={{ color: "#C72727", fontWeight: 500 }}>{IMPORT_PREVIEW.duplicates} duplicate{IMPORT_PREVIEW.duplicates !== 1 ? "s" : ""}</span> detected</>
+            )}
+          </div>
         )}
-        {step < 3
-          ? <button onClick={() => setStep((step + 1) as ImportStep)} style={{
-              height: 36, paddingInline: 16, borderRadius: 8, border: "none",
-              background: "#3E4FD3", color: "#fff",
-              fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
-            }}>
-              Continue
-            </button>
-          : <button style={{
-              height: 36, paddingInline: 16, borderRadius: 8, border: "none",
-              background: "#3E4FD3", color: "#fff",
-              fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
-            }}>
-              Import Students
-            </button>
-        }
+
+        {/* Right — Continue / Import */}
+        <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+          {step < 3
+            ? <button onClick={() => navigate((step + 1) as ImportStep)} style={{ ...btnBase, background: "#3E4FD3", color: "#fff" }}>
+                Continue
+              </button>
+            : <button style={{ ...btnBase, background: "#3E4FD3", color: "#fff" }}>
+                Import {IMPORT_PREVIEW.toImport} Students
+              </button>
+          }
+        </div>
       </div>
     </div>
   );
