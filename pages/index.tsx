@@ -1743,12 +1743,14 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
         transition: "opacity 160ms ease, transform 160ms ease",
       }}>
         {contentStep === 0 && (
-          <div style={{ padding: "160px 20%" }}>
-            <ImportStep1Upload
-              uploaded={fileUploaded}
-              onUpload={() => setFileUploaded(true)}
-              onRemove={() => setFileUploaded(false)}
-            />
+          <div style={{ minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20%" }}>
+            <div style={{ width: "100%" }}>
+              <ImportStep1Upload
+                uploaded={fileUploaded}
+                onUpload={() => setFileUploaded(true)}
+                onRemove={() => setFileUploaded(false)}
+              />
+            </div>
           </div>
         )}
         {contentStep !== 0 && (
