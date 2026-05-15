@@ -1,5 +1,5 @@
 import { Inter } from "next/font/google";
-import { useState, useEffect, useCallback, type ReactElement } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
 import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory } from "../data/mock";
 
 const inter = Inter({
@@ -2681,7 +2681,7 @@ function hexAlpha(hex: string, alpha: number) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function LessonCard({ lesson }: { lesson: (typeof LESSONS)[number] }) {
+function LessonCard({ lesson, onAssign }: { lesson: LessonItem; onAssign: () => void }) {
   const [hovered, setHovered] = useState(false);
   const color = CATEGORY_COLOR[lesson.category];
   const { pct, assigned } = lessonStats(lesson.id);
@@ -2752,10 +2752,251 @@ function LessonCard({ lesson }: { lesson: (typeof LESSONS)[number] }) {
 
       {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 4, borderTop: BORDER }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: "#3E4FD3" }}>
+        <button
+          onClick={e => { e.stopPropagation(); onAssign(); }}
+          style={{
+            background: "none", border: "none", padding: 0,
+            fontSize: 13, fontWeight: 500, color: "#3E4FD3",
+            fontFamily: "var(--font-inter)", cursor: "pointer",
+          }}
+        >
           Assign →
-        </span>
+        </button>
         <span style={{ fontSize: 12, color: "#A0A0AA" }}>{assigned} assigned</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Assign Lesson Modal ──────────────────────────────────────────────────────
+
+type LessonItem = (typeof LESSONS)[number];
+
+function chipLabel(name: string) {
+  const [first, ...rest] = name.split(" ");
+  return rest.length ? `${first} ${rest[rest.length - 1][0]}.` : first;
+}
+
+function alumniEmail(name: string) {
+  const parts = name.replace(/[^a-zA-Z\s]/g, "").toLowerCase().split(" ");
+  return `${parts[0][0]}.${parts[parts.length - 1]}@kent.edu`;
+}
+
+function AssignLessonModal({ lesson, show, onClose }: {
+  lesson: LessonItem | null;
+  show:   boolean;
+  onClose: () => void;
+}) {
+  const [mounted,  setMounted]  = useState(show);
+  const [vis,      setVis]      = useState(show);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [query,    setQuery]    = useState("");
+  const [dueDate,  setDueDate]  = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => {
+        setMounted(false);
+        setSelected(new Set()); setQuery(""); setDueDate("");
+      }, 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted || !lesson) return null;
+
+  const color = CATEGORY_COLOR[lesson.category];
+
+  const filtered = ALUMNI.filter(a =>
+    !query ||
+    a.name.toLowerCase().includes(query.toLowerCase()) ||
+    alumniEmail(a.name).includes(query.toLowerCase())
+  );
+
+  function toggle(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  const selectedStudents = ALUMNI.filter(a => selected.has(a.id));
+
+  const btnBase: React.CSSProperties = {
+    height: 40, paddingInline: 20, borderRadius: 8,
+    fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "background 220ms ease",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 14, width: 520,
+          maxHeight: "88vh", display: "flex", flexDirection: "column",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.16)",
+          opacity: vis ? 1 : 0,
+          transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)",
+          transition: "opacity 220ms ease, transform 220ms ease",
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: "24px 24px 18px", flexShrink: 0 }}>
+          <p style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, color: "#121216" }}>Assign Lesson</p>
+          <p style={{ margin: "0 0 10px", fontSize: 13, color: "#8E8E97" }}>{lesson.title}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color, fontWeight: 400 }}>
+            <span>{lesson.category}</span>
+            <span style={{ color: "#D0D0D8" }}>·</span>
+            <span>{lesson.minRead} min read</span>
+            <span style={{ color: "#D0D0D8" }}>·</span>
+            <span>{lesson.blocks} blocks</span>
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E8E8EC", flexShrink: 0 }} />
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+
+          {/* Assign to Students */}
+          <div>
+            <p style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 600, color: "#121216" }}>Assign to Students</p>
+
+            {/* Chip + search input */}
+            <div
+              onClick={() => inputRef.current?.focus()}
+              style={{
+                minHeight: 44, padding: "6px 10px", borderRadius: 8,
+                border: "1.5px solid #3E4FD3",
+                display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6,
+                cursor: "text",
+              }}
+            >
+              {selectedStudents.map(s => (
+                <span key={s.id} style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  height: 26, paddingInline: 9, borderRadius: 20,
+                  background: hexAlpha("#3E4FD3", 0.1),
+                  fontSize: 12, fontWeight: 500, color: "#3E4FD3",
+                }}>
+                  {chipLabel(s.name)}
+                  <button
+                    onClick={e => { e.stopPropagation(); toggle(s.id); }}
+                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", color: "#3E4FD3" }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                      <path d="M1.5 1.5l7 7M8.5 1.5l-7 7"/>
+                    </svg>
+                  </button>
+                </span>
+              ))}
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={selectedStudents.length === 0 ? "+ Add students…" : ""}
+                style={{
+                  border: "none", outline: "none", flex: 1, minWidth: 100,
+                  fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)",
+                  background: "transparent", padding: "2px 0",
+                }}
+              />
+            </div>
+
+            <p style={{ margin: "6px 0 8px", fontSize: 12, color: "#A0A0AA" }}>Search by name or email</p>
+
+            {/* Student list */}
+            <div style={{ border: BORDER, borderRadius: 8, maxHeight: 196, overflowY: "auto" }}>
+              {filtered.length === 0
+                ? <div style={{ padding: "12px 14px", fontSize: 13, color: "#A0A0AA" }}>No students found.</div>
+                : filtered.map((a, i) => {
+                  const checked = selected.has(a.id);
+                  return (
+                    <div
+                      key={a.id}
+                      onClick={() => toggle(a.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "10px 14px", cursor: "pointer",
+                        background: checked ? "#F5F6FF" : "#fff",
+                        borderBottom: i < filtered.length - 1 ? BORDER : undefined,
+                        transition: `background ${MS.dFast} ${MS.eOut}`,
+                      }}
+                    >
+                      <div style={{
+                        width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                        border: checked ? "none" : "1.5px solid #C5C5CC",
+                        background: checked ? "#3E4FD3" : "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: `background ${MS.dFast} ${MS.eOut}`,
+                      }}>
+                        {checked && (
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M1.5 5l2.5 2.5L8.5 2" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: "#121216", flex: 1 }}>{a.name}</span>
+                      <span style={{ fontSize: 13, color: "#A0A0AA" }}>{alumniEmail(a.name)}</span>
+                    </div>
+                  );
+                })
+              }
+            </div>
+          </div>
+
+          {/* Due Date */}
+          <div>
+            <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 600, color: "#121216" }}>Due Date</p>
+            <div style={{
+              height: 44, paddingInline: 14, borderRadius: 8, border: BORDER,
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <input
+                type="text"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                placeholder=""
+                style={{
+                  flex: 1, border: "none", outline: "none",
+                  fontSize: 14, color: "#121216", fontFamily: "var(--font-inter)",
+                  background: "transparent",
+                }}
+              />
+              {!dueDate && (
+                <span style={{ fontSize: 13, color: "#C5C5CC", flexShrink: 0 }}>Optional</span>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        <div style={{ height: 1, background: "#E8E8EC", flexShrink: 0 }} />
+
+        {/* Footer */}
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
+          <button onClick={onClose} style={{ ...btnBase, border: BORDER, background: "#fff", color: "#121216" }}>
+            Cancel
+          </button>
+          <button style={{ ...btnBase, border: "none", background: "#3E4FD3", color: "#fff", fontWeight: 700 }}>
+            Assign Lesson
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2763,6 +3004,7 @@ function LessonCard({ lesson }: { lesson: (typeof LESSONS)[number] }) {
 
 function LessonsPage() {
   const [activeCategory, setActiveCategory] = useState<LessonCategory | null>(null);
+  const [assignLesson,   setAssignLesson]   = useState<LessonItem | null>(null);
 
   // Ordered unique categories from the lessons list
   const categories = LESSONS.reduce<LessonCategory[]>((acc, l) => {
@@ -2845,7 +3087,7 @@ function LessonsPage() {
       <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {visible.map(lesson => (
-            <LessonCard key={lesson.id} lesson={lesson} />
+            <LessonCard key={lesson.id} lesson={lesson} onAssign={() => setAssignLesson(lesson)} />
           ))}
         </div>
       </div>
@@ -2878,6 +3120,12 @@ function LessonsPage() {
           </>
         )}
       </div>
+
+      <AssignLessonModal
+        lesson={assignLesson}
+        show={assignLesson !== null}
+        onClose={() => setAssignLesson(null)}
+      />
 
     </div>
   );
