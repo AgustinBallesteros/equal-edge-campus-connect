@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, RESOURCES, RESOURCE_CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceType } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -3824,6 +3824,158 @@ function NewMessageModal({ show, onClose }: { show: boolean; onClose: () => void
   );
 }
 
+// ─── Share picker (Script / Lesson / Resource) ───────────────────────────────
+
+type ShareTab = "script" | "lesson" | "resource";
+
+const RESOURCE_TYPE_ICON: Record<ResourceType, React.ReactNode> = {
+  Link: (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.5 7.5a3 3 0 004 0l2-2a3 3 0 00-4-4L6.5 2.5"/><path d="M7.5 5.5a3 3 0 00-4 0l-2 2a3 3 0 004 4l1-1"/>
+    </svg>
+  ),
+  Document: (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="1" width="9" height="11" rx="1.5"/><path d="M4.5 4.5h4M4.5 6.5h4M4.5 8.5h2.5"/>
+    </svg>
+  ),
+  Video: (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="2.5" width="8" height="8" rx="1.5"/><path d="M9 5l3-2v7l-3-2"/>
+    </svg>
+  ),
+};
+
+function SharePicker({ onClose }: { onClose: () => void }) {
+  const [tab,    setTab]    = useState<ShareTab>("script");
+  const [search, setSearch] = useState("");
+  const [picked, setPicked] = useState<{ tab: ShareTab; id: number } | null>(null);
+
+  const TABS: { key: ShareTab; label: string }[] = [
+    { key: "script",   label: "Share a Script"   },
+    { key: "lesson",   label: "Share a Lesson"   },
+    { key: "resource", label: "Share a Resource" },
+  ];
+
+  function switchTab(t: ShareTab) { setTab(t); setSearch(""); }
+  function toggle(id: number) {
+    setPicked(prev => prev?.tab === tab && prev.id === id ? null : { tab, id });
+  }
+
+  const q = search.toLowerCase();
+  const items =
+    tab === "script"   ? SCRIPTS.filter(s  => !q || s.title.toLowerCase().includes(q)).map(s  => ({ id: s.id,  title: s.title,  sub: s.category,  typeIcon: null as React.ReactNode }))
+  : tab === "lesson"   ? LESSONS.filter(l  => !q || l.title.toLowerCase().includes(q)).map(l  => ({ id: l.id,  title: l.title,  sub: l.category,  typeIcon: null as React.ReactNode }))
+  : RESOURCES.filter(r => !q || r.title.toLowerCase().includes(q)).map(r => ({ id: r.id, title: r.title, sub: r.category, typeIcon: RESOURCE_TYPE_ICON[r.type] }));
+
+  const placeholder = tab === "script" ? "Search scripts…" : tab === "lesson" ? "Search lessons…" : "Search resources…";
+
+  const docIcon = (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="1" width="9" height="11" rx="1.5"/><path d="M4.5 4.5h4M4.5 6.5h4M4.5 8.5h2.5"/>
+    </svg>
+  );
+
+  return (
+    <div style={{
+      position: "absolute", bottom: "calc(100% + 8px)", left: 0,
+      width: 360, background: "#fff", borderRadius: 12,
+      border: BORDER, boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
+      zIndex: 50, overflow: "hidden", display: "flex", flexDirection: "column",
+    }}>
+      {/* Tabs */}
+      <div style={{ display: "flex", borderBottom: BORDER, paddingInline: 14 }}>
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            onClick={() => switchTab(t.key)}
+            style={{
+              background: "none", border: "none",
+              padding: "10px 0", marginRight: 16, marginBottom: -1,
+              fontSize: 13, fontWeight: tab === t.key ? 600 : 400,
+              color: tab === t.key ? "#121216" : "#8E8E97",
+              fontFamily: "var(--font-inter)", cursor: "pointer", whiteSpace: "nowrap",
+              borderBottom: tab === t.key ? "2px solid #3E4FD3" : "2px solid transparent",
+              transition: `color ${MS.dFast} ${MS.eOut}, border-color ${MS.dFast} ${MS.eOut}`,
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div style={{ padding: "10px 12px", borderBottom: BORDER }}>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={placeholder}
+          autoFocus
+          style={{
+            width: "100%", height: 32, paddingInline: 10, boxSizing: "border-box",
+            borderRadius: 7, border: "1.5px solid #E8E8EC", outline: "none",
+            fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)",
+            background: "#F8F8FA",
+          }}
+        />
+      </div>
+
+      {/* List */}
+      <div style={{ maxHeight: 248, overflowY: "auto" }}>
+        {items.map((item, i) => {
+          const isSelected = picked?.tab === tab && picked.id === item.id;
+          return (
+            <div
+              key={item.id}
+              onClick={() => toggle(item.id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 14px",
+                borderBottom: i < items.length - 1 ? BORDER : "none",
+                cursor: "pointer",
+                background: isSelected ? "#F0F2FD" : "#fff",
+                transition: `background ${MS.dFast} ${MS.eOut}`,
+              }}
+            >
+              {/* Type icon box */}
+              <div style={{
+                width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                background: isSelected ? hexAlpha("#3E4FD3", 0.1) : "#F0F0F5",
+                color: isSelected ? "#3E4FD3" : "#8E8E97",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+              }}>
+                {item.typeIcon ?? docIcon}
+              </div>
+              {/* Title */}
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#121216", lineHeight: 1.3 }}>
+                {item.title}
+              </span>
+              {/* Checkmark */}
+              {isSelected && (
+                <div style={{
+                  width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                  background: "#3E4FD3",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1.5 5l2.5 2.5L8.5 2"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {items.length === 0 && (
+          <div style={{ padding: "20px 14px", textAlign: "center", fontSize: 13, color: "#A0A0AA" }}>
+            No results
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Messages page ────────────────────────────────────────────────────────────
 
 const MSG_TODAY_ISO = `${MOCK_TODAY.year}-${String(MOCK_TODAY.month + 1).padStart(2, "0")}-${String(MOCK_TODAY.day).padStart(2, "0")}`;
@@ -3889,9 +4041,10 @@ function sortedMsgThreads() {
 
 function MessagesPage() {
   const threads = sortedMsgThreads();
-  const [activeId, setActiveId] = useState<number>(threads[0].id);
-  const [search,   setSearch]   = useState("");
-  const [inputVal, setInputVal] = useState("");
+  const [activeId,   setActiveId]   = useState<number>(threads[0].id);
+  const [search,     setSearch]     = useState("");
+  const [inputVal,   setInputVal]   = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const activeThread = threads.find(t => t.id === activeId)!;
@@ -4135,13 +4288,27 @@ function MessagesPage() {
         <div style={{
           flexShrink: 0, borderTop: BORDER, background: "#fff",
           padding: "10px 16px", display: "flex", alignItems: "center", gap: 10,
+          position: "relative",
         }}>
-          <button style={{
-            width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-            background: "#F0F0F5", border: "none", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#8E8E97",
-          }}>
+          {/* Transparent overlay to close picker on outside click */}
+          {pickerOpen && (
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 49 }}
+              onClick={() => setPickerOpen(false)}
+            />
+          )}
+          {pickerOpen && <SharePicker onClose={() => setPickerOpen(false)} />}
+          <button
+            onClick={() => setPickerOpen(p => !p)}
+            style={{
+              width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+              background: pickerOpen ? "#3E4FD3" : "#F0F0F5",
+              border: "none", cursor: "pointer", position: "relative", zIndex: 50,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: pickerOpen ? "#fff" : "#8E8E97",
+              transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+            }}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M13.5 7.5L7 14a4.5 4.5 0 01-6.5-6.5l7-7a3 3 0 014.5 4.5L5 12a1.5 1.5 0 01-2.5-2.5l7-7"/>
             </svg>

@@ -1,3 +1,46 @@
+// ─── Resources ───────────────────────────────────────────────────────────────
+
+export type ResourceCategory =
+  | "Financial Aid"
+  | "Disability Services"
+  | "Academic Support"
+  | "Health & Wellness"
+  | "Campus Life";
+
+export type ResourceType = "Link" | "Document" | "Video";
+
+export type Resource = {
+  id:          number;
+  title:       string;
+  category:    ResourceCategory;
+  type:        ResourceType;
+  description: string;
+  url:         string;
+};
+
+export const RESOURCE_CATEGORY_COLOR: Record<ResourceCategory, string> = {
+  "Financial Aid":        "#10B981",
+  "Disability Services":  "#6366F1",
+  "Academic Support":     "#3B82F6",
+  "Health & Wellness":    "#F59E0B",
+  "Campus Life":          "#A855F7",
+};
+
+export const RESOURCES: Resource[] = [
+  { id:  1, category: "Financial Aid",       type: "Link",     title: "FAFSA Application Portal",                    description: "Complete or update your Free Application for Federal Student Aid.",                                                  url: "https://studentaid.gov" },
+  { id:  2, category: "Financial Aid",       type: "Document", title: "Emergency Student Fund Request",              description: "Apply for one-time emergency financial assistance through the university student support office.",                    url: "https://example.kent.edu/emergency-fund.pdf" },
+  { id:  3, category: "Financial Aid",       type: "Video",    title: "Understanding Your Aid Package",              description: "Video walkthrough explaining grants, loans, and work-study components of your financial aid offer.",                 url: "https://example.kent.edu/videos/aid-package" },
+  { id:  4, category: "Disability Services", type: "Link",     title: "DSO Accommodation Request Portal",            description: "Submit and manage your accommodation requests through the Disability Services Office student portal.",                 url: "https://example.kent.edu/dso" },
+  { id:  5, category: "Disability Services", type: "Video",    title: "Booking Extended Time at the Testing Center", description: "Step-by-step guide to scheduling extended time exams and checking in at the campus testing center.",                 url: "https://example.kent.edu/videos/testing-center" },
+  { id:  6, category: "Academic Support",    type: "Link",     title: "Tutoring Center Schedule",                    description: "Browse available tutoring sessions by subject and register for an open time slot.",                                  url: "https://example.kent.edu/tutoring" },
+  { id:  7, category: "Academic Support",    type: "Document", title: "Study Skills Handbook",                       description: "Comprehensive guide to effective study strategies, note-taking methods, and exam preparation tips.",                  url: "https://example.kent.edu/study-skills.pdf" },
+  { id:  8, category: "Academic Support",    type: "Video",    title: "Time Management for College Students",        description: "Short video series covering prioritization, scheduling, and building sustainable study habits.",                       url: "https://example.kent.edu/videos/time-mgmt" },
+  { id:  9, category: "Health & Wellness",   type: "Link",     title: "Student Health Center Appointments",          description: "Book a medical or mental health appointment at the on-campus student health and counseling center.",                  url: "https://example.kent.edu/health" },
+  { id: 10, category: "Health & Wellness",   type: "Video",    title: "Guided Stress Relief Techniques",             description: "10-minute video covering mindfulness, box breathing, and relaxation exercises for high-stress periods.",               url: "https://example.kent.edu/videos/stress-relief" },
+  { id: 11, category: "Campus Life",         type: "Link",     title: "Student Organizations Directory",             description: "Explore over 200 registered student clubs and organizations and find your campus community.",                        url: "https://example.kent.edu/orgs" },
+  { id: 12, category: "Campus Life",         type: "Document", title: "Campus Accessibility Map",                    description: "Printable map highlighting accessible entrances, elevators, reserved parking, and key building locations.",          url: "https://example.kent.edu/campus-map.pdf" },
+];
+
 // ─── Lesson categories ────────────────────────────────────────────────────────
 
 export type LessonCategory =
