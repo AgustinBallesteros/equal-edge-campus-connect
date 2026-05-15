@@ -516,12 +516,13 @@ function makePageConfigs(
   setView: (v: ViewTab) => void,
   toolsVisible: ToolsVisible,
   setToolsVisible: (tv: ToolsVisible) => void,
-  onAddStudent:   () => void,
-  onImportCSV:    () => void,
-  onNewMessage:   () => void,
-  activeLessonId: number | null,
-  onLessonBack:   () => void,
-  onAssignLesson: () => void,
+  onAddStudent:    () => void,
+  onImportCSV:     () => void,
+  onNewMessage:    () => void,
+  activeLessonId:  number | null,
+  onLessonBack:    () => void,
+  onAssignLesson:  () => void,
+  onAddResource:   () => void,
 ): Record<NavId, PageConfig> {
   const activeLesson = activeLessonId ? LESSONS.find(l => l.id === activeLessonId) ?? null : null;
   return {
@@ -542,7 +543,7 @@ function makePageConfigs(
     5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
     6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="+ New Message" onClick={onNewMessage} /> },
     7: { title: "Events",         description: "Shared with all students in the app",                    actions: <BtnMain label="New Event" /> },
-    8: { title: "Resources",      description: "Links, documents, and videos available to all students", actions: <BtnMain label="+ Add Resource" /> },
+    8: { title: "Resources",      description: "Links, documents, and videos available to all students", actions: <BtnMain label="+ Add Resource" onClick={onAddResource} /> },
     9: { title: "Settings",       description: "",                                                        actions: null },
   };
 }
@@ -4626,6 +4627,208 @@ function ResourcesPage() {
   );
 }
 
+// ─── Add Resource Modal ───────────────────────────────────────────────────────
+function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => void }) {
+  const [mounted,  setMounted]  = useState(show);
+  const [vis,      setVis]      = useState(show);
+  const [resType,  setResType]  = useState<ResourceType>("Link");
+  const [title,    setTitle]    = useState("");
+  const [category, setCategory] = useState<ResourceCategory>("Financial Aid");
+  const [desc,     setDesc]     = useState("");
+  const [url,      setUrl]      = useState("");
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => {
+        setMounted(false);
+        setResType("Link"); setTitle(""); setCategory("Financial Aid");
+        setDesc(""); setUrl("");
+      }, 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", height: 40, paddingInline: 12, boxSizing: "border-box",
+    borderRadius: 8, border: "1.5px solid #E8E8EC",
+    fontSize: 14, color: "#121216", fontFamily: "var(--font-inter)",
+    outline: "none", background: "#fff",
+  };
+
+  const canAdd = title.trim().length > 0 && url.trim().length > 0;
+
+  const RES_TYPES: ResourceType[] = ["Link", "Document", "Video"];
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "background 220ms ease",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 16, width: 520,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+          opacity: vis ? 1 : 0,
+          transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)",
+          transition: "opacity 220ms ease, transform 220ms ease",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#121216" }}>Add Resource</h2>
+        </div>
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+
+        {/* Body */}
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+
+          {/* Type — segmented control */}
+          <div>
+            <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "#121216" }}>Type</p>
+            <div style={{
+              display: "flex", background: "#F0F0F5", borderRadius: 10, padding: 4, gap: 2,
+            }}>
+              {RES_TYPES.map(t => (
+                <button
+                  key={t}
+                  onClick={() => setResType(t)}
+                  style={{
+                    flex: 1, height: 34, borderRadius: 7, border: "none",
+                    background: resType === t ? "#fff" : "transparent",
+                    color: resType === t ? "#121216" : "#8E8E97",
+                    fontWeight: resType === t ? 600 : 400,
+                    fontSize: 13, fontFamily: "var(--font-inter)", cursor: "pointer",
+                    boxShadow: resType === t ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
+                    transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}, box-shadow ${MS.dFast} ${MS.eOut}`,
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>
+              Resource Title
+            </label>
+            <input
+              type="text" value={title} placeholder="e.g. FAFSA Application Portal"
+              onChange={e => setTitle(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>
+              Resource Category
+            </label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ position: "relative", flex: 1 }}>
+                <select
+                  value={category}
+                  onChange={e => setCategory(e.target.value as ResourceCategory)}
+                  style={{
+                    ...inputStyle,
+                    appearance: "none", paddingRight: 32, cursor: "pointer",
+                  }}
+                >
+                  {(["Financial Aid", "Disability Services", "Academic Support", "Health & Wellness", "Campus Life"] as ResourceCategory[]).map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <svg style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8E8E97" }} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <button style={{
+                height: 40, paddingInline: 14, borderRadius: 8,
+                border: "1.5px dashed #C7C7D0",
+                background: "transparent", color: "#3E4FD3",
+                fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)",
+                cursor: "pointer", whiteSpace: "nowrap",
+              }}>
+                + Create new category
+              </button>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>
+              Resource Description
+            </label>
+            <textarea
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+              placeholder="Brief description of what this resource provides…"
+              rows={3}
+              style={{
+                ...inputStyle, height: "auto", padding: "10px 12px",
+                resize: "vertical", lineHeight: 1.55,
+              }}
+            />
+          </div>
+
+          {/* URL */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>
+              {resType === "Link" ? "URL" : resType === "Document" ? "Document URL" : "Video URL"}
+            </label>
+            <input
+              type="url" value={url}
+              placeholder={resType === "Link" ? "https://example.com" : resType === "Document" ? "https://example.com/doc.pdf" : "https://example.com/video"}
+              onChange={e => setUrl(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+
+        {/* Footer */}
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{
+            height: 36, paddingInline: 16, borderRadius: 8, border: BORDER,
+            background: "#fff", color: "#121216",
+            fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+          }}>
+            Cancel
+          </button>
+          <button
+            disabled={!canAdd}
+            style={{
+              height: 36, paddingInline: 16, borderRadius: 8, border: "none",
+              background: canAdd ? "#3E4FD3" : "#C7C7D0", color: "#fff",
+              fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)",
+              cursor: canAdd ? "pointer" : "not-allowed",
+              transition: `background ${MS.dFast} ${MS.eOut}`,
+            }}
+          >
+            Add Resource
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Content (page router) ────────────────────────────────────────────────────
 function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void }) {
   return (
@@ -4656,6 +4859,7 @@ export default function Home() {
   const [addStudentOpen,   setAddStudentOpen]   = useState(false);
   const [importCSVOpen,    setImportCSVOpen]    = useState(false);
   const [newMessageOpen,   setNewMessageOpen]   = useState(false);
+  const [addResourceOpen,  setAddResourceOpen]  = useState(false);
   const [activeLessonId,   setActiveLessonId]   = useState<number | null>(null);
   const [assignLessonItem, setAssignLessonItem] = useState<LessonItem | null>(null);
 
@@ -4671,6 +4875,7 @@ export default function Home() {
     activeLessonId,
     () => setActiveLessonId(null),
     () => { const l = LESSONS.find(l => l.id === activeLessonId); if (l) setAssignLessonItem(l); },
+    () => setAddResourceOpen(true),
   );
 
   return (
@@ -4687,6 +4892,7 @@ export default function Home() {
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
       <NewMessageModal show={newMessageOpen} onClose={() => setNewMessageOpen(false)} />
+      <AddResourceModal show={addResourceOpen} onClose={() => setAddResourceOpen(false)} />
       <AssignLessonModal
         lesson={assignLessonItem}
         show={assignLessonItem !== null}
