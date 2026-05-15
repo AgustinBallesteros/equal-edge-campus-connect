@@ -1925,6 +1925,96 @@ function ImportStep3Review({
   );
 }
 
+// ─── Import step 4 — Confirm ─────────────────────────────────────────────────
+
+function ImportStep4Confirm({ counts }: {
+  counts: { toImport: number; skipped: number; duplicates: number };
+}) {
+  const { toImport, skipped, duplicates } = counts;
+
+  const rows: { icon: ReactElement; label: string; value: string; color: string; bg: string; border: string }[] = [
+    {
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2.5 7l3 3L11.5 4" stroke="#22A062" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      label: "students will be added to the roster",
+      value: String(toImport),
+      color: "#22A062", bg: "#ECFDF5", border: "#A7F3D0",
+    },
+    ...(skipped > 0 ? [{
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 4.5v3M7 9.5v.5" stroke="#C28F11" strokeWidth="1.6" strokeLinecap="round"/>
+          <circle cx="7" cy="7" r="5.5" stroke="#C28F11" strokeWidth="1.4"/>
+        </svg>
+      ),
+      label: `row${skipped !== 1 ? "s" : ""} skipped — missing required fields`,
+      value: String(skipped),
+      color: "#92400E", bg: "#FFFBEB", border: "#FDE68A",
+    }] : []),
+    ...(duplicates > 0 ? [{
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="2.5" y="4.5" width="7" height="7" rx="1.5" stroke="#6366F1" strokeWidth="1.4"/>
+          <path d="M5 4V3.5A1.5 1.5 0 016.5 2h4A1.5 1.5 0 0112 3.5v4A1.5 1.5 0 0110.5 9H10" stroke="#6366F1" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+      ),
+      label: `duplicate${duplicates !== 1 ? "s" : ""} will be ignored`,
+      value: String(duplicates),
+      color: "#4338CA", bg: "#EEF2FF", border: "#C7D2FE",
+    }] : []),
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 32, padding: "40px 0" }}>
+
+      {/* Icon */}
+      <div style={{
+        width: 56, height: 56, borderRadius: "50%",
+        background: "#ECFDF5", border: "2px solid #A7F3D0",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M4 12l5 5L20 7" stroke="#22A062" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+
+      {/* Heading */}
+      <div style={{ textAlign: "center" }}>
+        <p style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 700, color: "#121216" }}>
+          Ready to import
+        </p>
+        <p style={{ margin: 0, fontSize: 13, color: "#8E8E97", maxWidth: 340 }}>
+          Review the summary below and click <strong style={{ color: "#121216" }}>Import</strong> to add students to the roster.
+        </p>
+      </div>
+
+      {/* Summary rows */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 400 }}>
+        {rows.map((r, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 14px", borderRadius: 10,
+            background: r.bg, border: `1px solid ${r.border}`,
+          }}>
+            <div style={{ flexShrink: 0 }}>{r.icon}</div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: r.color, flexShrink: 0 }}>{r.value}</span>
+            <span style={{ fontSize: 13, color: r.color }}>{r.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Fine print */}
+      <p style={{ margin: 0, fontSize: 12, color: "#B0B0BA", textAlign: "center", maxWidth: 360 }}>
+        This action cannot be undone. Skipped and duplicate rows will not be imported.
+      </p>
+
+    </div>
+  );
+}
+
 // ─── CSV Import shell ─────────────────────────────────────────────────────────
 const IMPORT_STEPS = ["Upload File", "Map Columns", "Review", "Import"] as const;
 type ImportStep = 0 | 1 | 2 | 3;
@@ -2091,8 +2181,8 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
           </div>
         )}
         {contentStep === 3 && (
-          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 13, color: "#C5C5CC" }}>Step 4 · Import</span>
+          <div style={{ minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20%" }}>
+            <ImportStep4Confirm counts={liveCounts} />
           </div>
         )}
       </div>
