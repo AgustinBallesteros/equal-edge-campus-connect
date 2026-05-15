@@ -328,7 +328,7 @@ function DashboardActions({
 }
 
 // ─── Page configs ─────────────────────────────────────────────────────────────
-type PageConfig = { title: string; description: string; actions: ReactElement | null };
+type PageConfig = { title: string; description: React.ReactNode; actions: React.ReactNode };
 
 // ─── Add Student Modal ────────────────────────────────────────────────────────
 function AddStudentModal({ show, onClose }: { show: boolean; onClose: () => void }) {
@@ -518,11 +518,25 @@ function makePageConfigs(
   setToolsVisible: (tv: ToolsVisible) => void,
   onAddStudent: () => void,
   onImportCSV:  () => void,
+  activeLessonId: number | null,
+  onLessonBack:   () => void,
+  onAssignLesson: () => void,
 ): Record<NavId, PageConfig> {
+  const activeLesson = activeLessonId ? LESSONS.find(l => l.id === activeLessonId) ?? null : null;
   return {
     1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",              actions: <DashboardActions view={view} onViewChange={setView} toolsVisible={toolsVisible} setToolsVisible={setToolsVisible} /> },
     2: { title: "Student Roster", description: "Manage student access and invitation status",             actions: <><BtnMain label="Add Student" onClick={onAddStudent} /><BtnSecondary label="Import CSV" onClick={onImportCSV} /></> },
-    3: { title: "Learn Library",  description: "Browse and assign lessons to students",                   actions: null },
+    3: activeLesson
+      ? {
+          title: activeLesson.title,
+          description: (
+            <button onClick={onLessonBack} style={{ background: "none", border: "none", padding: 0, fontSize: 13, color: "#3E4FD3", fontWeight: 400, fontFamily: "var(--font-inter)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, lineHeight: 1 }}>
+              ← Lesson Library
+            </button>
+          ),
+          actions: <BtnMain label="Assign Lesson" onClick={onAssignLesson} />,
+        }
+      : { title: "Learn Library",  description: "Browse and assign lessons to students", actions: null },
     4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" /> },
     5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
     6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="New Message" /> },
@@ -1408,8 +1422,9 @@ function emailOf(name: string): string {
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const d = new Date(iso + "T00:00");
+  const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+  return `${m} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -2681,7 +2696,7 @@ function hexAlpha(hex: string, alpha: number) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function LessonCard({ lesson, onAssign }: { lesson: LessonItem; onAssign: () => void }) {
+function LessonCard({ lesson, onAssign, onOpenDetail }: { lesson: LessonItem; onAssign: () => void; onOpenDetail: () => void }) {
   const [hovered, setHovered] = useState(false);
   const color = CATEGORY_COLOR[lesson.category];
   const { pct, assigned } = lessonStats(lesson.id);
@@ -2713,11 +2728,14 @@ function LessonCard({ lesson, onAssign }: { lesson: LessonItem; onAssign: () => 
       </div>
 
       {/* Title */}
-      <p style={{
-        margin: 0, fontSize: 15, fontWeight: 600, color: "#121216",
-        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-        overflow: "hidden",
-      }}>
+      <p
+        onClick={onOpenDetail}
+        style={{
+          margin: 0, fontSize: 15, fontWeight: 600, color: "#121216",
+          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+          overflow: "hidden", cursor: "pointer",
+        }}
+      >
         {lesson.title}
       </p>
 
@@ -3129,9 +3147,256 @@ function AssignLessonModal({ lesson, show, onClose }: {
   );
 }
 
-function LessonsPage() {
+// ─── Lesson Detail Page ───────────────────────────────────────────────────────
+
+function addDays(iso: string, n: number): string {
+  const d = new Date(iso + "T00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+type AssignmentRow = {
+  alumniId:      number;
+  name:          string;
+  dateAssigned:  string;
+  dueDate:       string | null;
+  status:        "Completed" | "In Progress" | "Not Started";
+  dateCompleted: string | null;
+};
+
+function buildAssignments(lessonId: number): AssignmentRow[] {
+  return ALUMNI
+    .filter(a => a.assignedLessonIds.includes(lessonId))
+    .map(a => {
+      const base          = a.dateActivated ?? a.dateInvited ?? "2026-01-01";
+      const dateAssigned  = addDays(base, (a.id * 3 + lessonId) % 14);
+      const dueDate       = addDays(dateAssigned, 21 + (lessonId % 7));
+      const hash          = (a.id * 13 + lessonId * 7) % 10;
+      const status: AssignmentRow["status"] =
+        hash < 4 ? "Completed" : hash < 7 ? "In Progress" : "Not Started";
+      const dateCompleted = status === "Completed"
+        ? addDays(dateAssigned, 10 + (a.id % 8))
+        : null;
+      return { alumniId: a.id, name: a.name, dateAssigned, dueDate, status, dateCompleted };
+    });
+}
+
+function AssignStatusBadge({ status }: { status: AssignmentRow["status"] }) {
+  const cfg = status === "Completed"
+    ? { bg: "#E8F7EE", color: "#22A062" }
+    : status === "In Progress"
+    ? { bg: "#EEF1FD", color: "#3E4FD3" }
+    : { bg: "#F5F5F8", color: "#8E8E97" };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center",
+      height: 22, paddingInline: 9, borderRadius: 20,
+      fontSize: 11, fontWeight: 600,
+      background: cfg.bg, color: cfg.color,
+    }}>
+      {status}
+    </span>
+  );
+}
+
+function LessonDetailPage({ lessonId, onAssign }: { lessonId: number; onAssign: () => void }) {
+  const lesson      = LESSONS.find(l => l.id === lessonId)!;
+  const color       = CATEGORY_COLOR[lesson.category];
+  const assignments = buildAssignments(lessonId);
+  const completed   = assignments.filter(a => a.status === "Completed");
+  const inProgress  = assignments.filter(a => a.status === "In Progress");
+  const notStarted  = assignments.filter(a => a.status === "Not Started");
+  const total       = assignments.length;
+
+  const completePct   = total > 0 ? Math.round((completed.length  / total) * 100) : 0;
+  const inProgressPct = total > 0 ? Math.round((inProgress.length / total) * 100) : 0;
+
+  const [tab, setTab] = useState<"all" | "not-started" | "in-progress" | "completed">("all");
+
+  const tabs = [
+    { key: "all"         as const, label: "All",         count: total             },
+    { key: "not-started" as const, label: "Not Started", count: notStarted.length },
+    { key: "in-progress" as const, label: "In Progress", count: inProgress.length },
+    { key: "completed"   as const, label: "Completed",   count: completed.length  },
+  ];
+
+  const visRows = tab === "all"         ? assignments
+               : tab === "completed"   ? completed
+               : tab === "in-progress" ? inProgress
+               : notStarted;
+
+  const thStyle: React.CSSProperties = {
+    padding: "10px 20px", textAlign: "left",
+    fontSize: 12, fontWeight: 600, color: "#8E8E97",
+    background: "#FAFAFA", whiteSpace: "nowrap",
+  };
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+
+          {/* ── Left column (35%) ── */}
+          <div style={{ flex: "0 0 35%", display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* Lesson info card */}
+            <div style={{ background: "#fff", borderRadius: 12, border: BORDER, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <span style={{
+                  display: "inline-flex", alignItems: "center",
+                  height: 22, paddingInline: 9, borderRadius: 20,
+                  fontSize: 11, fontWeight: 600,
+                  background: hexAlpha(color, 0.12), color,
+                }}>
+                  {lesson.category}
+                </span>
+              </div>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#121216", lineHeight: 1.3 }}>
+                {lesson.title}
+              </h2>
+              <p style={{ margin: 0, fontSize: 14, color: "#8E8E97", lineHeight: 1.55 }}>
+                {lesson.summary}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, borderTop: BORDER, paddingTop: 14 }}>
+                {([
+                  ["Read time",      `${lesson.minRead} min`],
+                  ["Blocks",         String(lesson.blocks)],
+                  ["Category",       lesson.category],
+                  ["Total assigned", String(total)],
+                ] as [string, string][]).map(([label, val]) => (
+                  <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 13, color: "#8E8E97" }}>{label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#121216" }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Completion stats card */}
+            <div style={{ background: "#fff", borderRadius: 12, border: BORDER, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#121216" }}>Overall Completion</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontSize: 40, fontWeight: 700, color: "#121216", lineHeight: 1 }}>{completePct}</span>
+                <span style={{ fontSize: 18, fontWeight: 600, color: "#8E8E97" }}>%</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 4, display: "flex", overflow: "hidden", background: "#F0F0F5" }}>
+                {completePct   > 0 && <div style={{ width: `${completePct}%`,   background: "#22A062", transition: "width 0.3s ease" }} />}
+                {inProgressPct > 0 && <div style={{ width: `${inProgressPct}%`, background: "#3E4FD3", transition: "width 0.3s ease" }} />}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {([
+                  { label: "Completed",   c: "#22A062", n: completed.length  },
+                  { label: "In Progress", c: "#3E4FD3", n: inProgress.length },
+                  { label: "Not Started", c: "#D0D0D8", n: notStarted.length },
+                ] as { label: string; c: string; n: number }[]).map(({ label, c, n }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: c, flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: "#8E8E97" }}>{label}</span>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#121216" }}>{n}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* ── Right column ── */}
+          <div style={{ flex: 1, background: "#fff", borderRadius: 12, border: BORDER, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+
+            {/* Header */}
+            <div style={{ padding: "16px 20px", borderBottom: BORDER, flexShrink: 0 }}>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#121216" }}>
+                Assigned Students
+                <span style={{ marginLeft: 6, fontSize: 13, fontWeight: 400, color: "#8E8E97" }}>({total})</span>
+              </p>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: "flex", borderBottom: BORDER, paddingInline: 20, flexShrink: 0 }}>
+              {tabs.map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  style={{
+                    background: "none", border: "none",
+                    padding: "10px 0", marginRight: 20, marginBottom: -1,
+                    fontSize: 13, fontWeight: tab === t.key ? 600 : 400,
+                    color: tab === t.key ? "#121216" : "#8E8E97",
+                    fontFamily: "var(--font-inter)", cursor: "pointer",
+                    borderBottom: tab === t.key ? "2px solid #3E4FD3" : "2px solid transparent",
+                    transition: `color ${MS.dFast} ${MS.eOut}, border-color ${MS.dFast} ${MS.eOut}`,
+                  }}
+                >
+                  {t.label}
+                  <span style={{
+                    marginLeft: 5, fontSize: 11, fontWeight: 600,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    height: 16, minWidth: 16, borderRadius: 8, paddingInline: 4,
+                    background: tab === t.key ? "#3E4FD3" : "#F0F0F5",
+                    color: tab === t.key ? "#fff" : "#8E8E97",
+                  }}>
+                    {t.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Table */}
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Date Assigned</th>
+                  <th style={thStyle}>Due Date</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Date Completed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visRows.map(row => (
+                  <tr key={row.alumniId} style={{ borderTop: BORDER }}>
+                    <td style={{ padding: "12px 20px", fontSize: 14, fontWeight: 500, color: "#121216" }}>{row.name}</td>
+                    <td style={{ padding: "12px 20px", fontSize: 13, color: "#8E8E97" }}>{fmtDate(row.dateAssigned)}</td>
+                    <td style={{ padding: "12px 20px", fontSize: 13, color: "#8E8E97" }}>{row.dueDate ? fmtDate(row.dueDate) : "—"}</td>
+                    <td style={{ padding: "12px 20px" }}><AssignStatusBadge status={row.status} /></td>
+                    <td style={{ padding: "12px 20px", fontSize: 13, color: "#8E8E97" }}>{row.dateCompleted ? fmtDate(row.dateCompleted) : "—"}</td>
+                  </tr>
+                ))}
+                {visRows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: "32px 20px", textAlign: "center", fontSize: 13, color: "#A0A0AA" }}>
+                      No students in this category
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
+  activeLessonId:    number | null;
+  setActiveLessonId: (id: number | null) => void;
+  onAssignLesson:    (lesson: LessonItem) => void;
+}) {
   const [activeCategory, setActiveCategory] = useState<LessonCategory | null>(null);
-  const [assignLesson,   setAssignLesson]   = useState<LessonItem | null>(null);
+
+  if (activeLessonId !== null) {
+    return (
+      <LessonDetailPage
+        lessonId={activeLessonId}
+        onAssign={() => { const l = LESSONS.find(x => x.id === activeLessonId); if (l) onAssignLesson(l); }}
+      />
+    );
+  }
 
   // Ordered unique categories from the lessons list
   const categories = LESSONS.reduce<LessonCategory[]>((acc, l) => {
@@ -3214,7 +3479,7 @@ function LessonsPage() {
       <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {visible.map(lesson => (
-            <LessonCard key={lesson.id} lesson={lesson} onAssign={() => setAssignLesson(lesson)} />
+            <LessonCard key={lesson.id} lesson={lesson} onAssign={() => onAssignLesson(lesson)} onOpenDetail={() => setActiveLessonId(lesson.id)} />
           ))}
         </div>
       </div>
@@ -3248,18 +3513,12 @@ function LessonsPage() {
         )}
       </div>
 
-      <AssignLessonModal
-        lesson={assignLesson}
-        show={assignLesson !== null}
-        onClose={() => setAssignLesson(null)}
-      />
-
     </div>
   );
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void }) {
+function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff" }}>
       {page === 1 && (
@@ -3268,7 +3527,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
         </div>
       )}
       {page === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
-      {page === 3 && <LessonsPage />}
+      {page === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
       {page !== 1 && page !== 2 && page !== 3 && (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
@@ -3280,21 +3539,45 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [activeNav,      setActiveNav]      = useState<NavId>(1);
-  const [dashView,       setDashView]       = useState<ViewTab>("This Month");
-  const [toolsVisible,   setToolsVisible]   = useState<ToolsVisible>(initToolsVisible);
-  const [addStudentOpen, setAddStudentOpen] = useState(false);
-  const [importCSVOpen,  setImportCSVOpen]  = useState(false);
-  const pageConfigs = makePageConfigs(dashView, setDashView, toolsVisible, setToolsVisible, () => setAddStudentOpen(true), () => setImportCSVOpen(true));
+  const [activeNav,        setActiveNav]        = useState<NavId>(1);
+  const [dashView,         setDashView]         = useState<ViewTab>("This Month");
+  const [toolsVisible,     setToolsVisible]     = useState<ToolsVisible>(initToolsVisible);
+  const [addStudentOpen,   setAddStudentOpen]   = useState(false);
+  const [importCSVOpen,    setImportCSVOpen]    = useState(false);
+  const [activeLessonId,   setActiveLessonId]   = useState<number | null>(null);
+  const [assignLessonItem, setAssignLessonItem] = useState<LessonItem | null>(null);
+
+  function handleNavSelect(id: NavId) {
+    setActiveNav(id);
+    if (id !== 3) setActiveLessonId(null);
+  }
+
+  const pageConfigs = makePageConfigs(
+    dashView, setDashView, toolsVisible, setToolsVisible,
+    () => setAddStudentOpen(true), () => setImportCSVOpen(true),
+    activeLessonId,
+    () => setActiveLessonId(null),
+    () => { const l = LESSONS.find(l => l.id === activeLessonId); if (l) setAssignLessonItem(l); },
+  );
 
   return (
     <div className={inter.variable} style={{ width: "100vw", height: "100vh", overflow: "hidden", display: "flex", fontFamily: "var(--font-inter)", userSelect: "none", WebkitUserSelect: "none" }}>
-      <Sidebar active={activeNav} onSelect={setActiveNav} />
+      <Sidebar active={activeNav} onSelect={handleNavSelect} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <TopBar page={activeNav} configs={pageConfigs} />
-        <Content page={activeNav} view={dashView} onNavigate={setActiveNav} toolsVisible={toolsVisible} importOpen={importCSVOpen} onImportClose={() => setImportCSVOpen(false)} />
+        <Content
+          page={activeNav} view={dashView} onNavigate={handleNavSelect} toolsVisible={toolsVisible}
+          importOpen={importCSVOpen} onImportClose={() => setImportCSVOpen(false)}
+          activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId}
+          onAssignLesson={(l) => setAssignLessonItem(l)}
+        />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
+      <AssignLessonModal
+        lesson={assignLessonItem}
+        show={assignLessonItem !== null}
+        onClose={() => setAssignLessonItem(null)}
+      />
     </div>
   );
 }
