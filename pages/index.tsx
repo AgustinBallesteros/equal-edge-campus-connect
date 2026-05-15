@@ -516,8 +516,9 @@ function makePageConfigs(
   setView: (v: ViewTab) => void,
   toolsVisible: ToolsVisible,
   setToolsVisible: (tv: ToolsVisible) => void,
-  onAddStudent: () => void,
-  onImportCSV:  () => void,
+  onAddStudent:   () => void,
+  onImportCSV:    () => void,
+  onNewMessage:   () => void,
   activeLessonId: number | null,
   onLessonBack:   () => void,
   onAssignLesson: () => void,
@@ -539,7 +540,7 @@ function makePageConfigs(
       : { title: "Learn Library",  description: "Browse and assign lessons to students", actions: null },
     4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" /> },
     5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
-    6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="+ New Message" /> },
+    6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="+ New Message" onClick={onNewMessage} /> },
     7: { title: "Events",         description: "Shared with all students in the app",                    actions: <BtnMain label="New Event" /> },
     8: { title: "Resources",      description: "Links, documents, and videos available to all students", actions: <BtnMain label="Add Resource" /> },
     9: { title: "Settings",       description: "",                                                        actions: null },
@@ -3532,6 +3533,297 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
   );
 }
 
+// ─── New Message Modal ────────────────────────────────────────────────────────
+
+const NEW_MSG_TEMPLATES = {
+  custom:   "",
+  schedule: "Hi! I wanted to remind you that your classes are now scheduled for the upcoming term. Please log in to your student portal to confirm your enrollment and review your timetable. Reach out if you have any questions or need support.",
+  testing:  "Hi! Your testing accommodations have been arranged for your upcoming exams. Please arrive at the Testing Center at least 10 minutes early and bring a valid student ID. Contact our office if you need to make any changes.",
+} as const;
+
+type NewMsgTemplate = keyof typeof NEW_MSG_TEMPLATES;
+
+function NewMessageModal({ show, onClose }: { show: boolean; onClose: () => void }) {
+  const [mounted,    setMounted]    = useState(show);
+  const [vis,        setVis]        = useState(show);
+  const [recipients, setRecipients] = useState<Set<number | "all">>(new Set<number | "all">(["all"]));
+  const [query,      setQuery]      = useState("");
+  const [toOpen,     setToOpen]     = useState(false);
+  const [template,   setTemplate]   = useState<NewMsgTemplate>("custom");
+  const [message,    setMessage]    = useState("");
+  const toRef   = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => {
+        setMounted(false);
+        setRecipients(new Set<number | "all">(["all"]));
+        setQuery(""); setToOpen(false);
+        setTemplate("custom"); setMessage("");
+      }, 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  useEffect(() => {
+    if (!toOpen) return;
+    function onDown(e: MouseEvent) {
+      if (toRef.current && !toRef.current.contains(e.target as Node)) setToOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [toOpen]);
+
+  function pickTemplate(t: NewMsgTemplate) {
+    setTemplate(t);
+    setMessage(NEW_MSG_TEMPLATES[t]);
+  }
+
+  const isAll = recipients.has("all");
+  const selectedAlumni = ALUMNI.filter(a => recipients.has(a.id));
+
+  function removeRecipient(id: number | "all") {
+    setRecipients(prev => { const n = new Set(prev); n.delete(id); return n; });
+  }
+
+  function addAll() {
+    setRecipients(new Set<number | "all">(["all"]));
+    setQuery(""); setToOpen(false);
+  }
+
+  function toggleStudent(id: number) {
+    setRecipients(prev => {
+      const n = new Set(prev);
+      n.delete("all");
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+    setQuery("");
+  }
+
+  const dropAlumni = query.trim()
+    ? ALUMNI.filter(a => a.name.toLowerCase().includes(query.toLowerCase()))
+    : ALUMNI.slice(0, 8);
+
+  const canSend = recipients.size > 0 && message.trim().length > 0;
+
+  if (!mounted) return null;
+
+  const pillBase: React.CSSProperties = {
+    height: 32, paddingInline: 14, borderRadius: 20,
+    fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)",
+    cursor: "pointer",
+    transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}, border-color ${MS.dFast} ${MS.eOut}`,
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "background 220ms ease",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: 520, background: "#fff", borderRadius: 16,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+          opacity: vis ? 1 : 0,
+          transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)",
+          transition: "opacity 220ms ease, transform 220ms ease",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#121216" }}>New Message</h2>
+        </div>
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+
+        {/* Body */}
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+
+          {/* To field */}
+          <div>
+            <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 600, color: "#121216" }}>To</p>
+            <div ref={toRef} style={{ position: "relative" }}>
+              <div
+                onClick={() => { setToOpen(true); inputRef.current?.focus(); }}
+                style={{
+                  minHeight: 42, borderRadius: 8,
+                  border: `1.5px solid ${toOpen ? "#3E4FD3" : "#E8E8EC"}`,
+                  padding: "6px 10px",
+                  display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6,
+                  cursor: "text",
+                  transition: `border-color ${MS.dFast} ${MS.eOut}`,
+                }}
+              >
+                {/* All Students chip */}
+                {isAll && (
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    height: 26, paddingInline: "10px 6px", borderRadius: 20,
+                    background: "#EBEBF0", fontSize: 13, fontWeight: 500, color: "#121216",
+                  }}>
+                    All Students
+                    <button
+                      onClick={e => { e.stopPropagation(); removeRecipient("all"); }}
+                      style={{ background: "#C5C5CC", border: "none", cursor: "pointer", borderRadius: "50%", width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}
+                    >
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round">
+                        <path d="M1 1l6 6M7 1L1 7"/>
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                {/* Individual student chips */}
+                {!isAll && selectedAlumni.map(a => (
+                  <div key={a.id} style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    height: 26, paddingInline: "10px 6px", borderRadius: 20,
+                    background: hexAlpha("#3E4FD3", 0.1), fontSize: 13, fontWeight: 500, color: "#3E4FD3",
+                  }}>
+                    {chipLabel(a.name)}
+                    <button
+                      onClick={e => { e.stopPropagation(); removeRecipient(a.id); }}
+                      style={{ background: hexAlpha("#3E4FD3", 0.25), border: "none", cursor: "pointer", borderRadius: "50%", width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}
+                    >
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#3E4FD3" strokeWidth="1.8" strokeLinecap="round">
+                        <path d="M1 1l6 6M7 1L1 7"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onFocus={() => setToOpen(true)}
+                  style={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: 14, fontFamily: "var(--font-inter)", background: "transparent", color: "#121216" }}
+                  placeholder={recipients.size === 0 ? "Search students or select all…" : ""}
+                />
+              </div>
+              {/* Dropdown */}
+              {toOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 20,
+                  background: "#fff", borderRadius: 10,
+                  border: BORDER, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  maxHeight: 200, overflowY: "auto",
+                }}>
+                  <div
+                    onMouseDown={e => { e.preventDefault(); addAll(); }}
+                    style={{
+                      padding: "9px 14px", cursor: "pointer",
+                      background: isAll ? "#F0F2FD" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 500, color: "#121216" }}>All Students</span>
+                    <span style={{ fontSize: 12, color: "#A0A0AA" }}>{ALUMNI.length} students</span>
+                  </div>
+                  <div style={{ height: 1, background: "#F0F0F5" }} />
+                  {dropAlumni.map(a => (
+                    <div
+                      key={a.id}
+                      onMouseDown={e => { e.preventDefault(); toggleStudent(a.id); }}
+                      style={{
+                        padding: "9px 14px", cursor: "pointer",
+                        background: recipients.has(a.id) ? "#F0F2FD" : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                      }}
+                    >
+                      <span style={{ fontSize: 14, color: "#121216" }}>{a.name}</span>
+                      {recipients.has(a.id) && (
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#3E4FD3" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 6.5l3 3 6-6"/>
+                        </svg>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Template selector */}
+          <div>
+            <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "#121216" }}>Template</p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {([
+                { key: "custom"   as const, label: "Custom"           },
+                { key: "schedule" as const, label: "Schedule classes"  },
+                { key: "testing"  as const, label: "Testing schedule"  },
+              ]).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => pickTemplate(key)}
+                  style={{
+                    ...pillBase,
+                    border: template === key ? "none" : BORDER,
+                    background: template === key ? "#3E4FD3" : "#fff",
+                    color: template === key ? "#fff" : "#4A4A55",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Message */}
+          <div>
+            <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 600, color: "#121216" }}>Message</p>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              placeholder="Type your message…"
+              rows={5}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                padding: "10px 12px", borderRadius: 8,
+                border: "1.5px solid #E8E8EC", outline: "none",
+                fontSize: 14, color: "#121216", lineHeight: 1.55,
+                fontFamily: "var(--font-inter)", resize: "vertical",
+                background: "#fff",
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+        {/* Footer */}
+        <div style={{ padding: "14px 24px", display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <BtnSecondary label="Cancel" onClick={onClose} />
+          <button
+            onClick={canSend ? onClose : undefined}
+            style={{
+              height: 36, paddingInline: 14, borderRadius: 8, border: "none",
+              background: canSend ? "#3E4FD3" : "#A8B4F5",
+              color: "#fff", fontSize: 14, fontWeight: 500,
+              fontFamily: "var(--font-inter)",
+              cursor: canSend ? "pointer" : "default",
+              whiteSpace: "nowrap",
+              transition: `background ${MS.dFast} ${MS.eOut}`,
+            }}
+          >
+            Send Message
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Messages page ────────────────────────────────────────────────────────────
 
 const MSG_TODAY_ISO = `${MOCK_TODAY.year}-${String(MOCK_TODAY.month + 1).padStart(2, "0")}-${String(MOCK_TODAY.day).padStart(2, "0")}`;
@@ -3915,6 +4207,7 @@ export default function Home() {
   const [toolsVisible,     setToolsVisible]     = useState<ToolsVisible>(initToolsVisible);
   const [addStudentOpen,   setAddStudentOpen]   = useState(false);
   const [importCSVOpen,    setImportCSVOpen]    = useState(false);
+  const [newMessageOpen,   setNewMessageOpen]   = useState(false);
   const [activeLessonId,   setActiveLessonId]   = useState<number | null>(null);
   const [assignLessonItem, setAssignLessonItem] = useState<LessonItem | null>(null);
 
@@ -3926,6 +4219,7 @@ export default function Home() {
   const pageConfigs = makePageConfigs(
     dashView, setDashView, toolsVisible, setToolsVisible,
     () => setAddStudentOpen(true), () => setImportCSVOpen(true),
+    () => setNewMessageOpen(true),
     activeLessonId,
     () => setActiveLessonId(null),
     () => { const l = LESSONS.find(l => l.id === activeLessonId); if (l) setAssignLessonItem(l); },
@@ -3944,6 +4238,7 @@ export default function Home() {
         />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
+      <NewMessageModal show={newMessageOpen} onClose={() => setNewMessageOpen(false)} />
       <AssignLessonModal
         lesson={assignLessonItem}
         show={assignLessonItem !== null}
