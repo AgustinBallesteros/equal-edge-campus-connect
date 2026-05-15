@@ -631,3 +631,57 @@ export const COMPLETION_DATA: Record<GraphViewKey, GraphPoint[]> = {
     { label: "Apr", value: 69 }, { label: "May", value: 79 },
   ],
 };
+
+// ─── CSV Import mock ──────────────────────────────────────────────────────────
+// Simulates a parsed .csv upload: row[0] is the header, rows[1-15] are data.
+// CsvRowStatus flags drive colour-coding in the Review step.
+
+export type CsvRowStatus = "ok" | "duplicate" | "skipped";
+
+// 16 rows total (1 header + 15 data)
+export const MOCK_CSV_ROWS: string[][] = [
+  //  student_id   student_fname   student_lname   student_eduemail
+  ["student_id",  "student_fname", "student_lname", "student_eduemail"],
+  ["5001", "Marcus",   "Webb",        "m.webb@kent.edu"         ],
+  ["5002", "Priya",    "Sharma",      "p.sharma@kent.edu"       ],
+  ["5003", "Darius",   "Coleman",     "d.coleman@kent.edu"      ],
+  ["5004", "Elena",    "Vasquez",     "e.vasquez@kent.edu"      ],
+  ["5005", "Tyler",    "Nguyen",      "t.nguyen@kent.edu"       ],
+  ["5006", "Amara",    "Osei",        "a.osei@kent.edu"         ],
+  ["5007", "Jordan",   "Blake",       "j.blake@kent.edu"        ],
+  ["5008", "Sofia",    "Reyes",       "s.reyes@kent.edu"        ], // duplicate — email already in roster
+  ["5009", "Caleb",    "Morton",      "c.morton@kent.edu"       ],
+  ["5010", "Imani",    "Foster",      "i.foster@kent.edu"       ],
+  ["5011", "Ethan",    "Caldwell",    "e.caldwell@kent.edu"     ],
+  ["5012", "Nadia",    "Ibrahim",     "n.ibrahim@kent.edu"      ],
+  ["5013", "Owen",     "Fitzgerald",  "o.fitzgerald@kent.edu"   ],
+  ["5014", "Layla",    "Hassan",      ""                        ], // skipped — missing email
+  ["5015", "Mateo",    "Delgado",     "m.delgado@kent.edu"      ],
+];
+
+// Status for each data row (index 0 = row 1, i.e. first student)
+export const MOCK_CSV_ROW_STATUS: CsvRowStatus[] = [
+  "ok",        // Marcus Webb
+  "ok",        // Priya Sharma
+  "ok",        // Darius Coleman
+  "ok",        // Elena Vasquez
+  "ok",        // Tyler Nguyen
+  "ok",        // Amara Osei
+  "ok",        // Jordan Blake
+  "duplicate", // Sofia Reyes — email already in roster
+  "ok",        // Caleb Morton
+  "ok",        // Imani Foster
+  "ok",        // Ethan Caldwell
+  "ok",        // Nadia Ibrahim
+  "ok",        // Owen Fitzgerald
+  "skipped",   // Layla Hassan — missing email
+  "ok",        // Mateo Delgado
+];
+
+// Derived preview counts (consumed by IMPORT_PREVIEW in index.tsx)
+export const MOCK_CSV_STATS = {
+  total:      MOCK_CSV_ROWS.length - 1,                                           // 15
+  toImport:   MOCK_CSV_ROW_STATUS.filter(s => s === "ok").length,                 // 13
+  duplicates: MOCK_CSV_ROW_STATUS.filter(s => s === "duplicate").length,          // 1
+  skipped:    MOCK_CSV_ROW_STATUS.filter(s => s === "skipped").length,            // 1
+};

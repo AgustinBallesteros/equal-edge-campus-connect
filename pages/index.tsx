@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, type GraphViewKey, type Alumni } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, type GraphViewKey, type Alumni, type CsvRowStatus } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -1475,8 +1475,8 @@ function SortArrow({ active, dir }: { active: boolean; dir: SortDir }) {
 const IMPORT_STEPS = ["Upload File", "Map Columns", "Review", "Import"] as const;
 type ImportStep = 0 | 1 | 2 | 3;
 
-// Placeholder preview stats — replaced with real parsed data in a later pass
-const IMPORT_PREVIEW = { toImport: 24, skipped: 3, duplicates: 1 };
+// Preview stats derived from mock CSV data
+const IMPORT_PREVIEW = MOCK_CSV_STATS;
 
 function RosterImportShell({ onClose }: { onClose: () => void }) {
   const [step,          setStep]          = useState<ImportStep>(0); // nav logic
