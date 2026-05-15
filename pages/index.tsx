@@ -2768,6 +2768,151 @@ function LessonCard({ lesson, onAssign }: { lesson: LessonItem; onAssign: () => 
   );
 }
 
+// ─── Date Picker Field ────────────────────────────────────────────────────────
+
+function DatePickerField({ value, onChange }: {
+  value:    string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const today = new Date();
+  const [open,     setOpen]     = useState(false);
+  const [calYear,  setCalYear]  = useState(value ? new Date(value + "T00:00").getFullYear() : today.getFullYear());
+  const [calMonth, setCalMonth] = useState(value ? new Date(value + "T00:00").getMonth()    : today.getMonth());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  function prevMonth() {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  }
+  function selectDay(day: number) {
+    const m = String(calMonth + 1).padStart(2, "0");
+    const d = String(day).padStart(2, "0");
+    onChange(`${calYear}-${m}-${d}`);
+    setOpen(false);
+  }
+
+  const cells   = buildCalendarGrid(calYear, calMonth);
+  const todayY  = today.getFullYear(), todayM = today.getMonth(), todayD = today.getDate();
+  const selDate = value ? new Date(value + "T00:00") : null;
+  const selY    = selDate?.getFullYear() ?? null;
+  const selM    = selDate?.getMonth() ?? null;
+  const selD    = selDate?.getDate() ?? null;
+
+  const displayLabel = selDate
+    ? `${MONTH_NAMES[selDate.getMonth()]} ${selDate.getDate()}, ${selDate.getFullYear()}`
+    : null;
+
+  const navBtn = (ch: string, fn: () => void) => (
+    <button onClick={fn} style={{
+      width: 24, height: 24, border: BORDER, borderRadius: 6,
+      background: "#fff", cursor: "pointer", fontSize: 13, color: "#8E8E97",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "var(--font-inter)", lineHeight: 1,
+    }}>{ch}</button>
+  );
+
+  return (
+    <div ref={containerRef} style={{ position: "relative" }}>
+      {/* Trigger */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          height: 44, paddingInline: 14, borderRadius: 8,
+          border: open ? "1.5px solid #3E4FD3" : BORDER,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          cursor: "pointer",
+          transition: `border-color ${MS.dFast} ${MS.eOut}`,
+        }}
+      >
+        <span style={{ fontSize: 14, color: displayLabel ? "#121216" : "#C5C5CC" }}>
+          {displayLabel ?? "Optional"}
+        </span>
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke={open ? "#3E4FD3" : "#A0A0AA"} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: `stroke ${MS.dFast} ${MS.eOut}` }}>
+          <rect x="1.5" y="2.5" width="12" height="11" rx="2"/>
+          <path d="M1.5 6.5h12M5 1v3M10 1v3"/>
+        </svg>
+      </div>
+
+      {/* Calendar popover — above the trigger */}
+      {open && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: 0,
+          background: "#fff", borderRadius: 10, border: BORDER,
+          boxShadow: "0 4px 24px rgba(0,0,0,0.13)",
+          padding: "14px 14px 10px", width: 252, zIndex: 20,
+        }}>
+          {/* Month / year nav */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            {navBtn("‹", prevMonth)}
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>
+              {MONTH_NAMES[calMonth]} {calYear}
+            </span>
+            {navBtn("›", nextMonth)}
+          </div>
+
+          {/* DOW headers */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+            {CAL_DOW_LABELS.map((d, i) => (
+              <div key={i} style={{ textAlign: "center", fontSize: 10, fontWeight: 500, color: "#A0A0AA", paddingBlock: 2 }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Day cells */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: 2 }}>
+            {cells.map((day, i) => {
+              const isT = day !== null && calYear === todayY && calMonth === todayM && day === todayD;
+              const isS = day !== null && calYear === selY   && calMonth === selM   && day === selD;
+              return (
+                <div
+                  key={i}
+                  onClick={() => day && selectDay(day)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 30, cursor: day ? "pointer" : "default" }}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    background: isS ? "#3E4FD3" : isT ? "#EDEEFD" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: `background ${MS.dFast} ${MS.eOut}`,
+                  }}>
+                    <span style={{ fontSize: 12, fontWeight: isS || isT ? 600 : 400, color: isS ? "#fff" : isT ? "#3E4FD3" : day ? "#121216" : "transparent" }}>
+                      {day ?? ""}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Clear */}
+          {value && (
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: BORDER, display: "flex", justifyContent: "center" }}>
+              <button
+                onClick={() => { onChange(null); setOpen(false); }}
+                style={{ background: "none", border: "none", fontSize: 12, color: "#8E8E97", cursor: "pointer", fontFamily: "var(--font-inter)" }}
+              >
+                Clear date
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Assign Lesson Modal ──────────────────────────────────────────────────────
 
 type LessonItem = (typeof LESSONS)[number];
@@ -2791,7 +2936,7 @@ function AssignLessonModal({ lesson, show, onClose }: {
   const [vis,      setVis]      = useState(show);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [query,    setQuery]    = useState("");
-  const [dueDate,  setDueDate]  = useState("");
+  const [dueDate,  setDueDate]  = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -2803,7 +2948,7 @@ function AssignLessonModal({ lesson, show, onClose }: {
       setVis(false);
       const t = setTimeout(() => {
         setMounted(false);
-        setSelected(new Set()); setQuery(""); setDueDate("");
+        setSelected(new Set()); setQuery(""); setDueDate(null);
       }, 220);
       return () => clearTimeout(t);
     }
@@ -2960,30 +3105,12 @@ function AssignLessonModal({ lesson, show, onClose }: {
             </div>
           </div>
 
-          {/* Due Date */}
-          <div>
-            <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 600, color: "#121216" }}>Due Date</p>
-            <div style={{
-              height: 44, paddingInline: 14, borderRadius: 8, border: BORDER,
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
-              <input
-                type="text"
-                value={dueDate}
-                onChange={e => setDueDate(e.target.value)}
-                placeholder=""
-                style={{
-                  flex: 1, border: "none", outline: "none",
-                  fontSize: 14, color: "#121216", fontFamily: "var(--font-inter)",
-                  background: "transparent",
-                }}
-              />
-              {!dueDate && (
-                <span style={{ fontSize: 13, color: "#C5C5CC", flexShrink: 0 }}>Optional</span>
-              )}
-            </div>
-          </div>
+        </div>
 
+        {/* Due Date — outside scroll so calendar popover isn't clipped */}
+        <div style={{ flexShrink: 0, padding: "0 24px 16px" }}>
+          <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 600, color: "#121216" }}>Due Date</p>
+          <DatePickerField value={dueDate} onChange={setDueDate} />
         </div>
 
         <div style={{ height: 1, background: "#E8E8EC", flexShrink: 0 }} />
