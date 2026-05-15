@@ -122,9 +122,9 @@ function BtnMain({ label, onClick }: { label: string; onClick?: () => void }) {
   );
 }
 
-function BtnSecondary({ label }: { label: string }) {
+function BtnSecondary({ label, onClick }: { label: string; onClick?: () => void }) {
   return (
-    <button style={{
+    <button onClick={onClick} style={{
       height: 36, paddingInline: 14, borderRadius: 8,
       border: BORDER, background: "#fff", color: "#121216",
       fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)",
@@ -517,10 +517,11 @@ function makePageConfigs(
   toolsVisible: ToolsVisible,
   setToolsVisible: (tv: ToolsVisible) => void,
   onAddStudent: () => void,
+  onImportCSV:  () => void,
 ): Record<NavId, PageConfig> {
   return {
     1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",              actions: <DashboardActions view={view} onViewChange={setView} toolsVisible={toolsVisible} setToolsVisible={setToolsVisible} /> },
-    2: { title: "Student Roster", description: "Manage student access and invitation status",             actions: <><BtnMain label="Add Student" onClick={onAddStudent} /><BtnSecondary label="Import CSV" /></> },
+    2: { title: "Student Roster", description: "Manage student access and invitation status",             actions: <><BtnMain label="Add Student" onClick={onAddStudent} /><BtnSecondary label="Import CSV" onClick={onImportCSV} /></> },
     3: { title: "Learn Library",  description: "Browse and assign lessons to students",                   actions: null },
     4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" /> },
     5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
@@ -1470,6 +1471,115 @@ function SortArrow({ active, dir }: { active: boolean; dir: SortDir }) {
   );
 }
 
+// ─── CSV Import shell ─────────────────────────────────────────────────────────
+const IMPORT_STEPS = ["Upload File", "Map Columns", "Review Data", "Confirm Import"] as const;
+type ImportStep = 0 | 1 | 2 | 3;
+
+function RosterImportShell({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState<ImportStep>(0);
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+
+      {/* ── Step bar ── */}
+      <div style={{
+        flexShrink: 0, display: "flex", alignItems: "center",
+        padding: "0 24px", height: 52, borderBottom: BORDER, gap: 0,
+      }}>
+        {IMPORT_STEPS.map((label, i) => {
+          const idx   = i as ImportStep;
+          const done  = step > idx;
+          const active = step === idx;
+          const last  = i === IMPORT_STEPS.length - 1;
+          return (
+            <div key={label} style={{ display: "flex", alignItems: "center" }}>
+              {/* Step pill */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* Circle */}
+                <div style={{
+                  width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: done ? "#3E4FD3" : active ? "#3E4FD3" : "#E8E8EC",
+                  transition: `background ${MS.dFast} ${MS.eOut}`,
+                }}>
+                  {done
+                    ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 2.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    : <span style={{ fontSize: 10, fontWeight: 700, color: active ? "#fff" : "#8E8E97", lineHeight: 1 }}>{i + 1}</span>
+                  }
+                </div>
+                {/* Label */}
+                <span style={{
+                  fontSize: 13, fontWeight: active ? 600 : 400,
+                  color: active ? "#121216" : done ? "#3E4FD3" : "#8E8E97",
+                  whiteSpace: "nowrap",
+                  transition: `color ${MS.dFast} ${MS.eOut}`,
+                }}>
+                  {label}
+                </span>
+              </div>
+              {/* Connector */}
+              {!last && (
+                <div style={{
+                  width: 32, height: 1, marginInline: 8, flexShrink: 0,
+                  background: done ? "#3E4FD3" : "#E8E8EC",
+                  transition: `background ${MS.dFast} ${MS.eOut}`,
+                }} />
+              )}
+            </div>
+          );
+        })}
+
+        {/* Spacer + cancel */}
+        <div style={{ flex: 1 }} />
+        <button onClick={onClose} style={{
+          height: 32, paddingInline: 14, borderRadius: 7, border: BORDER,
+          background: "#fff", color: "#121216",
+          fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+        }}>
+          Cancel import
+        </button>
+      </div>
+
+      {/* ── Step content (placeholder) ── */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 13, color: "#C5C5CC" }}>Step {step + 1} · {IMPORT_STEPS[step]}</span>
+      </div>
+
+      {/* ── Footer nav ── */}
+      <div style={{
+        flexShrink: 0, borderTop: BORDER,
+        padding: "12px 24px", display: "flex", justifyContent: "flex-end", gap: 8,
+      }}>
+        {step > 0 && (
+          <button onClick={() => setStep((step - 1) as ImportStep)} style={{
+            height: 36, paddingInline: 16, borderRadius: 8, border: BORDER,
+            background: "#fff", color: "#121216",
+            fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+          }}>
+            Back
+          </button>
+        )}
+        {step < 3
+          ? <button onClick={() => setStep((step + 1) as ImportStep)} style={{
+              height: 36, paddingInline: 16, borderRadius: 8, border: "none",
+              background: "#3E4FD3", color: "#fff",
+              fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+            }}>
+              Continue
+            </button>
+          : <button style={{
+              height: 36, paddingInline: 16, borderRadius: 8, border: "none",
+              background: "#3E4FD3", color: "#fff",
+              fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+            }}>
+              Import Students
+            </button>
+        }
+      </div>
+    </div>
+  );
+}
+
 function RosterPage() {
   const [filter,    setFilter]    = useState<RosterFilter>("All"); // tab highlight
   const [rowFilter, setRowFilter] = useState<RosterFilter>("All"); // actual data
@@ -1888,7 +1998,7 @@ function RosterPage() {
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate, toolsVisible }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible }) {
+function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff" }}>
       {page === 1 && (
@@ -1896,7 +2006,7 @@ function Content({ page, view, onNavigate, toolsVisible }: { page: NavId; view: 
           <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} />
         </div>
       )}
-      {page === 2 && <RosterPage />}
+      {page === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
       {page !== 1 && page !== 2 && (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
@@ -1912,14 +2022,15 @@ export default function Home() {
   const [dashView,       setDashView]       = useState<ViewTab>("This Month");
   const [toolsVisible,   setToolsVisible]   = useState<ToolsVisible>(initToolsVisible);
   const [addStudentOpen, setAddStudentOpen] = useState(false);
-  const pageConfigs = makePageConfigs(dashView, setDashView, toolsVisible, setToolsVisible, () => setAddStudentOpen(true));
+  const [importCSVOpen,  setImportCSVOpen]  = useState(false);
+  const pageConfigs = makePageConfigs(dashView, setDashView, toolsVisible, setToolsVisible, () => setAddStudentOpen(true), () => setImportCSVOpen(true));
 
   return (
     <div className={inter.variable} style={{ width: "100vw", height: "100vh", overflow: "hidden", display: "flex", fontFamily: "var(--font-inter)", userSelect: "none", WebkitUserSelect: "none" }}>
       <Sidebar active={activeNav} onSelect={setActiveNav} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <TopBar page={activeNav} configs={pageConfigs} />
-        <Content page={activeNav} view={dashView} onNavigate={setActiveNav} toolsVisible={toolsVisible} />
+        <Content page={activeNav} view={dashView} onNavigate={setActiveNav} toolsVisible={toolsVisible} importOpen={importCSVOpen} onImportClose={() => setImportCSVOpen(false)} />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
     </div>
