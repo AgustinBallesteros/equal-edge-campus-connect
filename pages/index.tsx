@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, RESOURCES, RESOURCE_CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceType } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, RESOURCES, RESOURCE_CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -542,7 +542,7 @@ function makePageConfigs(
     5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
     6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="+ New Message" onClick={onNewMessage} /> },
     7: { title: "Events",         description: "Shared with all students in the app",                    actions: <BtnMain label="New Event" /> },
-    8: { title: "Resources",      description: "Links, documents, and videos available to all students", actions: <BtnMain label="Add Resource" /> },
+    8: { title: "Resources",      description: "Links, documents, and videos available to all students", actions: <BtnMain label="+ Add Resource" /> },
     9: { title: "Settings",       description: "",                                                        actions: null },
   };
 }
@@ -4346,6 +4346,286 @@ function MessagesPage() {
   );
 }
 
+// ─── Resources page ───────────────────────────────────────────────────────────
+
+const RESOURCE_CATEGORIES: ResourceCategory[] = [
+  "Financial Aid",
+  "Disability Services",
+  "Academic Support",
+  "Health & Wellness",
+  "Campus Life",
+];
+
+type ResourceTypeFilter = ResourceType | "All";
+
+function ResourceTypeIcon({ type }: { type: ResourceType }) {
+  if (type === "Link") return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M6.5 9.5l3-3M9.5 4.5H11.5V6.5M11.5 4.5L7 9M5.5 6H4a2 2 0 000 4h3.5M10.5 10H12a2 2 0 000-4H8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+  if (type === "Document") return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M9 2v4h4M6 9h4M6 11.5h4M6 6.5h1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  );
+  // Video
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <rect x="1.5" y="3.5" width="10" height="9" rx="1" stroke="currentColor" strokeWidth="1.4"/>
+      <path d="M11.5 6.5l3-2v7l-3-2v-3z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function fmtResourceDate(iso: string) {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${MONTH_NAMES[m - 1].slice(0, 3)} ${d}`;
+}
+
+function ResourcesPage() {
+  const [activeCategory, setActiveCategory] = useState<ResourceCategory | "all">("all");
+  const [typeFilter,     setTypeFilter]     = useState<ResourceTypeFilter>("All");
+  const [search,         setSearch]         = useState("");
+
+  const catCounts = RESOURCE_CATEGORIES.reduce<Record<string, number>>((acc, cat) => {
+    acc[cat] = RESOURCES.filter(r => r.category === cat).length;
+    return acc;
+  }, {});
+
+  const filtered = RESOURCES.filter(r => {
+    if (activeCategory !== "all" && r.category !== activeCategory) return false;
+    if (typeFilter !== "All" && r.type !== typeFilter) return false;
+    if (search && !r.title.toLowerCase().includes(search.toLowerCase()) &&
+        !r.description.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const typeCounts: Record<ResourceTypeFilter, number> = {
+    All:      RESOURCES.filter(r => activeCategory === "all" || r.category === activeCategory).length,
+    Link:     RESOURCES.filter(r => (activeCategory === "all" || r.category === activeCategory) && r.type === "Link").length,
+    Document: RESOURCES.filter(r => (activeCategory === "all" || r.category === activeCategory) && r.type === "Document").length,
+    Video:    RESOURCES.filter(r => (activeCategory === "all" || r.category === activeCategory) && r.type === "Video").length,
+  };
+
+  const typeFilters: ResourceTypeFilter[] = ["All", "Link", "Document", "Video"];
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+
+      {/* Sidebar */}
+      <div style={{
+        width: 220, flexShrink: 0, borderRight: BORDER,
+        display: "flex", flexDirection: "column", overflowY: "auto",
+        padding: "20px 0",
+      }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", letterSpacing: "0.06em", textTransform: "uppercase", padding: "0 16px", marginBottom: 8 }}>Categories</p>
+
+        {/* All Resources */}
+        {(() => {
+          const isActive = activeCategory === "all";
+          return (
+            <button
+              onClick={() => setActiveCategory("all")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "8px 16px", background: isActive ? hexAlpha("#3E4FD3", 0.06) : "transparent",
+                border: "none", borderLeft: `3px solid ${isActive ? "#3E4FD3" : "transparent"}`,
+                cursor: "pointer", width: "100%", textAlign: "left",
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 500, color: isActive ? "#3E4FD3" : "#1A1A2E" }}>All Resources</span>
+              <span style={{
+                fontSize: 11, fontWeight: 600,
+                background: isActive ? "#3E4FD3" : "#F0F0F5",
+                color: isActive ? "#fff" : "#8E8E97",
+                borderRadius: 10, padding: "1px 7px", minWidth: 22, textAlign: "center",
+              }}>{RESOURCES.length}</span>
+            </button>
+          );
+        })()}
+
+        <div style={{ height: 8 }} />
+
+        {RESOURCE_CATEGORIES.map(cat => {
+          const isActive = activeCategory === cat;
+          const color    = RESOURCE_CATEGORY_COLOR[cat];
+          return (
+            <button
+              key={cat}
+              onClick={() => { setActiveCategory(cat); setTypeFilter("All"); }}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "8px 16px", background: isActive ? hexAlpha(color, 0.06) : "transparent",
+                border: "none", borderLeft: `3px solid ${isActive ? color : "transparent"}`,
+                cursor: "pointer", width: "100%", textAlign: "left",
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 500, color: isActive ? color : "#1A1A2E" }}>{cat}</span>
+              <span style={{
+                fontSize: 11, fontWeight: 600,
+                background: isActive ? color : "#F0F0F5",
+                color: isActive ? "#fff" : "#8E8E97",
+                borderRadius: 10, padding: "1px 7px", minWidth: 22, textAlign: "center",
+              }}>{catCounts[cat]}</span>
+            </button>
+          );
+        })}
+
+        <div style={{ flex: 1 }} />
+        <button style={{
+          display: "flex", alignItems: "center", gap: 6, padding: "8px 16px",
+          background: "transparent", border: "none", cursor: "pointer",
+          fontSize: 13, color: "#3E4FD3", fontWeight: 500,
+        }}>
+          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+          New Category
+        </button>
+      </div>
+
+      {/* Main area */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* Type filter topbar */}
+        <div style={{
+          borderBottom: BORDER, padding: "0 24px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          height: 52, flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", gap: 4 }}>
+            {typeFilters.map(tf => {
+              const isActive = typeFilter === tf;
+              return (
+                <button
+                  key={tf}
+                  onClick={() => setTypeFilter(tf)}
+                  style={{
+                    padding: "5px 12px", borderRadius: 6, border: "none",
+                    background: isActive ? hexAlpha("#3E4FD3", 0.08) : "transparent",
+                    color: isActive ? "#3E4FD3" : "#8E8E97",
+                    fontWeight: isActive ? 600 : 400, fontSize: 13,
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  {tf}
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    background: isActive ? "#3E4FD3" : "#F0F0F5",
+                    color: isActive ? "#fff" : "#8E8E97",
+                    borderRadius: 8, padding: "1px 6px",
+                  }}>{typeCounts[tf]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search */}
+          <div style={{ position: "relative" }}>
+            <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#8E8E97", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M10.5 10.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search resources..."
+              style={{
+                width: 220, padding: "7px 12px 7px 30px",
+                border: BORDER, borderRadius: 8,
+                fontSize: 13, color: "#1A1A2E", background: "#FAFAFA",
+                outline: "none",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Card grid */}
+        <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+          {filtered.length === 0 ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200 }}>
+              <span style={{ color: "#ccc", fontSize: 13 }}>No resources match your filters</span>
+            </div>
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 24,
+            }}>
+              {filtered.map(r => {
+                const catColor = RESOURCE_CATEGORY_COLOR[r.category];
+                return (
+                  <div
+                    key={r.id}
+                    style={{
+                      border: BORDER, borderRadius: 12, padding: 20,
+                      display: "flex", flexDirection: "column", gap: 10,
+                      background: "#fff",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                      cursor: "pointer",
+                      transition: `box-shadow ${MS.dFast} ${MS.eOut}`,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.10)")}
+                    onMouseLeave={e => (e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)")}
+                  >
+                    {/* Top row: category badge + type icon */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, color: catColor,
+                        background: hexAlpha(catColor, 0.1),
+                        borderRadius: 6, padding: "3px 8px",
+                        letterSpacing: "0.02em",
+                      }}>{r.category}</span>
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        color: "#8E8E97", fontSize: 12,
+                      }}>
+                        <ResourceTypeIcon type={r.type} />
+                        {r.type}
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#1A1A2E", lineHeight: 1.4 }}>
+                      {r.title}
+                    </p>
+
+                    {/* Description — 2-line clamp */}
+                    <p style={{
+                      margin: 0, fontSize: 12, color: "#6B7280", lineHeight: 1.55,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical" as React.CSSProperties["WebkitBoxOrient"],
+                      overflow: "hidden",
+                    }}>
+                      {r.description}
+                    </p>
+
+                    {/* Footer */}
+                    <div style={{
+                      marginTop: "auto", paddingTop: 10,
+                      borderTop: BORDER,
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}>
+                      <span style={{ fontSize: 11, color: "#8E8E97" }}>
+                        Added by {r.addedBy} · {fmtResourceDate(r.addedDate)}
+                      </span>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color: "#8E8E97", flexShrink: 0 }}>
+                        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Content (page router) ────────────────────────────────────────────────────
 function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void }) {
   return (
@@ -4358,7 +4638,8 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
       {page === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
       {page === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
       {page === 6 && <MessagesPage />}
-      {page !== 1 && page !== 2 && page !== 3 && page !== 6 && (
+      {page === 8 && <ResourcesPage />}
+      {page !== 1 && page !== 2 && page !== 3 && page !== 6 && page !== 8 && (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
         </div>
