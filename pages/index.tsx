@@ -1601,7 +1601,7 @@ function ImportStep1Upload({ uploaded, onUpload, onRemove }: {
       }}>
         <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: "#121216" }}>Required CSV columns</p>
         <p style={{ margin: "0 0 10px", fontSize: 12, color: "#8E8E97" }}>
-          {["student_fname", "student_lname", "student_eduemail"].map((col, i, arr) => (
+          {["first_name", "last_name", "email"].map((col, i, arr) => (
             <span key={col}>
               <code style={{ fontFamily: "monospace", color: "#3E4FD3" }}>{col}</code>
               {i < arr.length - 1 && <span style={{ margin: "0 6px", color: "#C5C5CC" }}>·</span>}
