@@ -1741,6 +1741,20 @@ const COL_LABELS: Record<string, string> = {
   email:      "Email",
 };
 
+function recomputeReviewStatuses(list: ReviewRow[]): ReviewRow[] {
+  const emailCount: Record<string, number> = {};
+  list.forEach(r => {
+    const e = r.cells["email"]?.trim().toLowerCase();
+    if (e) emailCount[e] = (emailCount[e] ?? 0) + 1;
+  });
+  return list.map(r => {
+    if (SYSTEM_FIELDS.some(f => !r.cells[f]?.trim())) return { ...r, status: "skipped" as CsvRowStatus };
+    const e = r.cells["email"]?.trim().toLowerCase();
+    if (e && emailCount[e] > 1) return { ...r, status: "duplicate" as CsvRowStatus };
+    return { ...r, status: "ok" as CsvRowStatus };
+  });
+}
+
 function ImportStep3Review({
   mapping,
   onCountsChange,
@@ -1748,16 +1762,17 @@ function ImportStep3Review({
   mapping: Record<string, string>;
   onCountsChange: (c: { toImport: number; skipped: number; duplicates: number }) => void;
 }) {
-  const [rows, setRows] = useState<ReviewRow[]>(() =>
-    MOCK_CSV_ROWS.slice(1).map((row, i) => {
+  const [rows, setRows] = useState<ReviewRow[]>(() => {
+    const initial = MOCK_CSV_ROWS.slice(1).map((row, i) => {
       const cells: Record<string, string> = {};
       MOCK_CSV_ROWS[0].forEach((header, colIdx) => {
         const field = mapping[header];
         if (field && field !== "skip") cells[field] = row[colIdx];
       });
-      return { csvIdx: i, cells, status: MOCK_CSV_ROW_STATUS[i] };
-    })
-  );
+      return { csvIdx: i, cells, status: "ok" as CsvRowStatus };
+    });
+    return recomputeReviewStatuses(initial);
+  });
 
   const [editCell,   setEditCell]   = useState<{ idx: number; field: string } | null>(null);
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
@@ -1774,28 +1789,14 @@ function ImportStep3Review({
   // Columns to show — SYSTEM_FIELDS order, only those present in mapping
   const columns = SYSTEM_FIELDS.filter(f => Object.values(mapping).includes(f));
 
-  function recompute(list: ReviewRow[]): ReviewRow[] {
-    const emailCount: Record<string, number> = {};
-    list.forEach(r => {
-      const e = r.cells["email"]?.trim().toLowerCase();
-      if (e) emailCount[e] = (emailCount[e] ?? 0) + 1;
-    });
-    return list.map(r => {
-      if (SYSTEM_FIELDS.some(f => !r.cells[f]?.trim())) return { ...r, status: "skipped" as CsvRowStatus };
-      const e = r.cells["email"]?.trim().toLowerCase();
-      if (e && emailCount[e] > 1) return { ...r, status: "duplicate" as CsvRowStatus };
-      return { ...r, status: "ok" as CsvRowStatus };
-    });
-  }
-
   function updateCell(csvIdx: number, field: string, value: string) {
-    setRows(prev => recompute(
+    setRows(prev => recomputeReviewStatuses(
       prev.map(r => r.csvIdx === csvIdx ? { ...r, cells: { ...r.cells, [field]: value } } : r)
     ));
   }
 
   function removeRow(csvIdx: number) {
-    setRows(prev => recompute(prev.filter(r => r.csvIdx !== csvIdx)));
+    setRows(prev => recomputeReviewStatuses(prev.filter(r => r.csvIdx !== csvIdx)));
   }
 
   const colTemplate = `${columns.map(() => "1fr").join(" ")} 108px 36px`;
