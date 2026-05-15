@@ -3755,10 +3755,27 @@ function MessagesPage() {
 
         {/* Messages area */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 4px" }}>
-          {dateGroups.map(group => (
+          {dateGroups.map(group => {
+            const groupStartsAtUnread = group.rows[0].msgIdx === unreadStart;
+            return (
             <div key={group.date}>
+              {/* Unread divider — before date if first msg of group is first unread */}
+              {groupStartsAtUnread && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0 4px" }}>
+                  <div style={{ flex: 1, height: 1, background: hexAlpha("#3E4FD3", 0.25) }} />
+                  <div style={{
+                    background: hexAlpha("#3E4FD3", 0.08),
+                    border: `1px solid ${hexAlpha("#3E4FD3", 0.25)}`,
+                    borderRadius: 20, padding: "4px 14px",
+                    fontSize: 12, color: "#3E4FD3", fontWeight: 600, whiteSpace: "nowrap",
+                  }}>
+                    {activeThread.unreadCount} unread message{activeThread.unreadCount !== 1 ? "s" : ""}
+                  </div>
+                  <div style={{ flex: 1, height: 1, background: hexAlpha("#3E4FD3", 0.25) }} />
+                </div>
+              )}
               {/* Date divider */}
-              <div style={divStyle}>
+              <div style={{ ...divStyle, marginTop: groupStartsAtUnread ? 0 : undefined }}>
                 <div style={divLine} />
                 <span style={divLabel}>{dateGroupLabel(group.date)}</span>
                 <div style={divLine} />
@@ -3768,12 +3785,19 @@ function MessagesPage() {
                 const isStaff = msg.sender === "staff";
                 return (
                   <div key={msg.id}>
-                    {/* Unread divider */}
-                    {msg.msgIdx === unreadStart && (
-                      <div style={{ ...divStyle, margin: "8px 0 16px" }}>
-                        <div style={divLine} />
-                        <span style={divLabel}>{activeThread.unreadCount} unread message{activeThread.unreadCount !== 1 ? "s" : ""}</span>
-                        <div style={divLine} />
+                    {/* Unread divider — mid-group (first unread is NOT the first msg of this group) */}
+                    {!groupStartsAtUnread && msg.msgIdx === unreadStart && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0 16px" }}>
+                        <div style={{ flex: 1, height: 1, background: hexAlpha("#3E4FD3", 0.25) }} />
+                        <div style={{
+                          background: hexAlpha("#3E4FD3", 0.08),
+                          border: `1px solid ${hexAlpha("#3E4FD3", 0.25)}`,
+                          borderRadius: 20, padding: "4px 14px",
+                          fontSize: 12, color: "#3E4FD3", fontWeight: 600, whiteSpace: "nowrap",
+                        }}>
+                          {activeThread.unreadCount} unread message{activeThread.unreadCount !== 1 ? "s" : ""}
+                        </div>
+                        <div style={{ flex: 1, height: 1, background: hexAlpha("#3E4FD3", 0.25) }} />
                       </div>
                     )}
                     {/* Bubble row */}
@@ -3810,7 +3834,8 @@ function MessagesPage() {
                 );
               })}
             </div>
-          ))}
+          );
+        })}
           <div ref={endRef} />
         </div>
 
