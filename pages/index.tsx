@@ -1479,15 +1479,31 @@ type ImportStep = 0 | 1 | 2 | 3;
 const IMPORT_PREVIEW = { toImport: 24, skipped: 3, duplicates: 1 };
 
 function RosterImportShell({ onClose }: { onClose: () => void }) {
-  const [step,        setStep]        = useState<ImportStep>(0); // drives step bar + nav logic
-  const [contentStep, setContentStep] = useState<ImportStep>(0); // drives content (lags during transition)
-  const [vis,         setVis]         = useState(true);
-  const [slideFrom,   setSlideFrom]   = useState<"left" | "right">("right");
+  const [step,          setStep]          = useState<ImportStep>(0); // nav logic
+  const [barStep,       setBarStep]       = useState<ImportStep>(0); // circle / label colours
+  const [connFill,      setConnFill]      = useState<[number,number,number]>([0, 0, 0]); // 0–1 per connector
+  const [contentStep,   setContentStep]   = useState<ImportStep>(0); // content area (lags)
+  const [vis,           setVis]           = useState(true);
+  const [slideFrom,     setSlideFrom]     = useState<"left" | "right">("right");
 
   function navigate(next: ImportStep) {
     if (next === step) return;
     const fwd = next > step;
-    setStep(next);           // step bar updates immediately
+    const connIdx = fwd ? step : next; // connector between the two steps
+
+    setStep(next); // nav buttons / logic update immediately
+
+    if (fwd) {
+      // Fill connector first (240ms CSS transition), then light up next circle
+      setConnFill(prev => prev.map((v, j) => j === connIdx ? 1 : v) as [number,number,number]);
+      setTimeout(() => setBarStep(next), 250);
+    } else {
+      // Dim circle immediately, then retract connector
+      setBarStep(next);
+      setConnFill(prev => prev.map((v, j) => j === connIdx ? 0 : v) as [number,number,number]);
+    }
+
+    // Content slide transition (independent 160ms delay)
     setVis(false);
     setTimeout(() => {
       setSlideFrom(fwd ? "right" : "left");
@@ -1513,8 +1529,8 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
       }}>
         {IMPORT_STEPS.map((label, i) => {
           const idx    = i as ImportStep;
-          const done   = step > idx;
-          const active = step === idx;
+          const done   = barStep > idx;   // uses barStep (delayed on forward)
+          const active = barStep === idx;
           const last   = i === IMPORT_STEPS.length - 1;
           return (
             <div key={label} style={{ display: "flex", alignItems: "center" }}>
@@ -1524,11 +1540,11 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
                   width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   background: done || active ? "#3E4FD3" : "#E8E8EC",
-                  transition: `background ${MS.dFast} ${MS.eOut}`,
+                  transition: `background 180ms ${MS.eOut}`,
                 }}>
                   {done
                     ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 2.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    : <span style={{ fontSize: 10, fontWeight: 700, color: active ? "#fff" : "#8E8E97", lineHeight: 1 }}>{i + 1}</span>
+                    : <span style={{ fontSize: 10, fontWeight: 700, color: active ? "#fff" : "#8E8E97", lineHeight: 1, transition: `color 180ms ${MS.eOut}` }}>{i + 1}</span>
                   }
                 </div>
                 {/* Label */}
@@ -1536,18 +1552,26 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
                   fontSize: 13, fontWeight: active ? 600 : 400,
                   color: active ? "#121216" : done ? "#3E4FD3" : "#8E8E97",
                   whiteSpace: "nowrap",
-                  transition: `color ${MS.dFast} ${MS.eOut}`,
+                  transition: `color 180ms ${MS.eOut}, font-weight 180ms ${MS.eOut}`,
                 }}>
                   {label}
                 </span>
               </div>
-              {/* Connector */}
+              {/* Connector — animated fill track */}
               {!last && (
                 <div style={{
-                  width: 32, height: 1, marginInline: 10, flexShrink: 0,
-                  background: done ? "#3E4FD3" : "#E8E8EC",
-                  transition: `background ${MS.dFast} ${MS.eOut}`,
-                }} />
+                  position: "relative", width: 36, height: 2,
+                  marginInline: 10, flexShrink: 0,
+                  background: "#E8E8EC", borderRadius: 1,
+                }}>
+                  <div style={{
+                    position: "absolute", top: 0, left: 0, bottom: 0,
+                    borderRadius: 1,
+                    width: `${connFill[i] * 100}%`,
+                    background: "#3E4FD3",
+                    transition: "width 240ms ease",
+                  }} />
+                </div>
               )}
             </div>
           );
