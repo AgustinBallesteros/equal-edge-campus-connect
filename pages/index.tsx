@@ -2682,10 +2682,9 @@ function RosterPage() {
 
 // ─── Lessons page ────────────────────────────────────────────────────────────
 
-// Deterministic placeholder stats derived from lesson id
 function lessonStats(id: number) {
   const pct      = [62,48,71,38,55,29,83,44,67,31,72,56,45,79,38,62,51,44,67,29][id - 1] ?? 50;
-  const assigned = [28,21,34,41,19,38,16,22,14,33,25,17,20,30,28,41,24,38,22,18][id - 1] ?? 20;
+  const assigned = ALUMNI.filter(a => a.assignedLessonIds.includes(id)).length;
   return { pct, assigned };
 }
 
@@ -2958,8 +2957,9 @@ function AssignLessonModal({ lesson, show, onClose }: {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (show) {
+    if (show && lesson) {
       setMounted(true);
+      setSelected(new Set(ALUMNI.filter(a => a.assignedLessonIds.includes(lesson.id)).map(a => a.id)));
       const id = requestAnimationFrame(() => setVis(true));
       return () => cancelAnimationFrame(id);
     } else {
