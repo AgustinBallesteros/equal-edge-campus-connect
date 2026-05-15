@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, useCallback, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, type GraphViewKey, type Alumni, type CsvRowStatus } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -2665,6 +2665,195 @@ function RosterPage() {
   );
 }
 
+// ─── Lessons page ────────────────────────────────────────────────────────────
+
+// Deterministic placeholder stats derived from lesson id
+function lessonStats(id: number) {
+  const pct      = [62,48,71,38,55,29,83,44,67,31,72,56,45,79,38,62,51,44,67,29][id - 1] ?? 50;
+  const assigned = [28,21,34,41,19,38,16,22,14,33,25,17,20,30,28,41,24,38,22,18][id - 1] ?? 20;
+  return { pct, assigned };
+}
+
+function hexAlpha(hex: string, alpha: number) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function LessonCard({ lesson }: { lesson: (typeof LESSONS)[number] }) {
+  const [hovered, setHovered] = useState(false);
+  const color = CATEGORY_COLOR[lesson.category];
+  const { pct, assigned } = lessonStats(lesson.id);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: "#fff", borderRadius: 12,
+        border: hovered ? "1px solid #C5C5CC" : BORDER,
+        padding: "16px", display: "flex", flexDirection: "column", gap: 10,
+        boxShadow: hovered ? "0 4px 16px rgba(0,0,0,0.07)" : "0 1px 4px rgba(0,0,0,0.04)",
+        transition: `box-shadow ${MS.dFast} ${MS.eOut}, border-color ${MS.dFast} ${MS.eOut}`,
+        cursor: "pointer",
+      }}
+    >
+      {/* Category badge */}
+      <div style={{ display: "flex" }}>
+        <span style={{
+          display: "inline-flex", alignItems: "center",
+          height: 22, paddingInline: 9, borderRadius: 20,
+          fontSize: 11, fontWeight: 600,
+          background: hexAlpha(color, 0.12),
+          color,
+        }}>
+          {lesson.category}
+        </span>
+      </div>
+
+      {/* Title */}
+      <p style={{
+        margin: 0, fontSize: 15, fontWeight: 600, color: "#121216",
+        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+        overflow: "hidden",
+      }}>
+        {lesson.title}
+      </p>
+
+      {/* Summary */}
+      <p style={{
+        margin: 0, fontSize: 13, color: "#8E8E97", lineHeight: 1.5,
+        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+        overflow: "hidden", flex: 1,
+      }}>
+        {lesson.summary}
+      </p>
+
+      {/* Meta */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#8E8E97" }}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+          <circle cx="6" cy="6" r="5"/><path d="M6 3.5v2.75l1.75 1.25"/>
+        </svg>
+        <span>{lesson.minRead} min read</span>
+        <span style={{ color: "#D0D0D8" }}>·</span>
+        <span>{lesson.blocks} blocks</span>
+      </div>
+
+      {/* Progress bar */}
+      <div>
+        <div style={{ height: 4, borderRadius: 2, background: "#F0F0F5", overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${pct}%`, borderRadius: 2, background: "#22A062", transition: "width 0.3s ease" }} />
+        </div>
+        <p style={{ margin: "5px 0 0", fontSize: 11, color: "#A0A0AA" }}>
+          {pct}% of assigned students completed
+        </p>
+      </div>
+
+      {/* Footer */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 4, borderTop: BORDER }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: "#3E4FD3" }}>
+          Assign →
+        </span>
+        <span style={{ fontSize: 12, color: "#A0A0AA" }}>{assigned} assigned</span>
+      </div>
+    </div>
+  );
+}
+
+function LessonsPage() {
+  const [activeCategory, setActiveCategory] = useState<LessonCategory | null>(null);
+
+  // Ordered unique categories from the lessons list
+  const categories = LESSONS.reduce<LessonCategory[]>((acc, l) => {
+    if (!acc.includes(l.category)) acc.push(l.category);
+    return acc;
+  }, []);
+
+  const categoryCounts = Object.fromEntries(
+    categories.map(c => [c, LESSONS.filter(l => l.category === c).length])
+  ) as Record<LessonCategory, number>;
+
+  const visible = activeCategory ? LESSONS.filter(l => l.category === activeCategory) : LESSONS;
+
+  function toggleCategory(cat: LessonCategory) {
+    setActiveCategory(prev => prev === cat ? null : cat);
+  }
+
+  const pillBase: React.CSSProperties = {
+    height: 32, paddingInline: 14, borderRadius: 20,
+    border: BORDER, fontSize: 13, fontWeight: 500,
+    fontFamily: "var(--font-inter)", cursor: "pointer",
+    display: "inline-flex", alignItems: "center", gap: 5,
+    transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}, border-color ${MS.dFast} ${MS.eOut}`,
+    whiteSpace: "nowrap",
+  };
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+
+      {/* Category filter bar */}
+      <div style={{
+        flexShrink: 0, borderBottom: BORDER, background: "#fff",
+        padding: "10px 24px", display: "flex", alignItems: "center", gap: 8,
+        overflowX: "auto",
+      }}>
+        {/* All */}
+        <button
+          onClick={() => setActiveCategory(null)}
+          style={{
+            ...pillBase,
+            background: activeCategory === null ? "#3E4FD3" : "#fff",
+            color:      activeCategory === null ? "#fff"    : "#121216",
+            borderColor: activeCategory === null ? "#3E4FD3" : "#E5E5EA",
+          }}
+        >
+          All
+        </button>
+
+        {categories.map(cat => {
+          const active = activeCategory === cat;
+          const color  = CATEGORY_COLOR[cat];
+          return (
+            <button
+              key={cat}
+              onClick={() => toggleCategory(cat)}
+              style={{
+                ...pillBase,
+                background:  active ? hexAlpha(color, 0.12) : "#fff",
+                color:       active ? color : "#4A4A55",
+                borderColor: active ? hexAlpha(color, 0.4)  : "#E5E5EA",
+              }}
+            >
+              {cat}
+              <span style={{
+                fontSize: 11, fontWeight: 600,
+                color: active ? color : "#A0A0AA",
+                background: active ? hexAlpha(color, 0.15) : "#F0F0F5",
+                height: 18, minWidth: 18, borderRadius: 10,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                paddingInline: 5,
+              }}>
+                {categoryCounts[cat]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Card grid */}
+      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+          {visible.map(lesson => (
+            <LessonCard key={lesson.id} lesson={lesson} />
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 // ─── Content (page router) ────────────────────────────────────────────────────
 function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void }) {
   return (
@@ -2675,7 +2864,8 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
         </div>
       )}
       {page === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
-      {page !== 1 && page !== 2 && (
+      {page === 3 && <LessonsPage />}
+      {page !== 1 && page !== 2 && page !== 3 && (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
         </div>
