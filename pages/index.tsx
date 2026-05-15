@@ -539,7 +539,7 @@ function makePageConfigs(
       : { title: "Learn Library",  description: "Browse and assign lessons to students", actions: null },
     4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" /> },
     5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
-    6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="New Message" /> },
+    6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="+ New Message" /> },
     7: { title: "Events",         description: "Shared with all students in the app",                    actions: <BtnMain label="New Event" /> },
     8: { title: "Resources",      description: "Links, documents, and videos available to all students", actions: <BtnMain label="Add Resource" /> },
     9: { title: "Settings",       description: "",                                                        actions: null },
@@ -601,7 +601,7 @@ const icons: Record<string, ReactElement> = {
 };
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
-function NavItem({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function NavItem({ label, active, onClick, badge }: { label: string; active: boolean; onClick: () => void; badge?: number }) {
   return (
     <div onClick={onClick} style={{
       display: "flex", alignItems: "center", gap: 10,
@@ -611,7 +611,18 @@ function NavItem({ label, active, onClick }: { label: string; active: boolean; o
       transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
     }}>
       {icons[label]}
-      <span style={{ fontSize: 14, fontWeight: active ? 600 : 400, lineHeight: 1 }}>{label}</span>
+      <span style={{ fontSize: 14, fontWeight: active ? 600 : 400, lineHeight: 1, flex: 1 }}>{label}</span>
+      {badge != null && badge > 0 && (
+        <div style={{
+          minWidth: 18, height: 18, borderRadius: 9, paddingInline: 5,
+          background: active ? "#fff" : "#22A062",
+          color:      active ? "#3E4FD3" : "#fff",
+          fontSize: 11, fontWeight: 700,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {badge}
+        </div>
+      )}
     </div>
   );
 }
@@ -648,9 +659,13 @@ function Sidebar({ active, onSelect }: { active: NavId; onSelect: (id: NavId) =>
       <div style={{ height: 1, background: "#E5E5EA", marginBottom: 8 }} />
       <div style={{ paddingInline: 16, display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", paddingBottom: 16 }}>
         <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {NAV_ITEMS.map(({ id, label }) => (
-            <NavItem key={id} label={label} active={active === id} onClick={() => onSelect(id)} />
-          ))}
+          {NAV_ITEMS.map(({ id, label }) => {
+            const totalUnread = MESSAGE_THREADS.reduce((s, t) => s + t.unreadCount, 0);
+            return (
+              <NavItem key={id} label={label} active={active === id} onClick={() => onSelect(id)}
+                badge={label === "Messages" ? totalUnread : undefined} />
+            );
+          })}
         </nav>
         <div style={{ flex: 1 }} />
         <div style={{ height: 1, background: "#E5E5EA", marginBottom: 8 }} />
@@ -3517,6 +3532,336 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
   );
 }
 
+// ─── Messages page ────────────────────────────────────────────────────────────
+
+const MSG_TODAY_ISO = `${MOCK_TODAY.year}-${String(MOCK_TODAY.month + 1).padStart(2, "0")}-${String(MOCK_TODAY.day).padStart(2, "0")}`;
+const MSG_YESTERDAY_ISO = (() => {
+  const d = new Date(MSG_TODAY_ISO + "T00:00");
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+})();
+const MSG_NOW_MINS = 13 * 60 + 5; // fixed "now" = 13:05 for relative timestamps
+
+function fmtTime(t: string): string {
+  const [h, m] = t.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
+}
+
+function threadTimestamp(date: string, time: string): string {
+  if (date === MSG_TODAY_ISO) {
+    const [h, m] = time.split(":").map(Number);
+    const diff = MSG_NOW_MINS - (h * 60 + m);
+    if (diff < 60) return `${diff}m ago`;
+    return `${Math.floor(diff / 60)}h ago`;
+  }
+  if (date === MSG_YESTERDAY_ISO) return "Yesterday";
+  const d = new Date(date + "T00:00");
+  return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getDate()}`;
+}
+
+function msgTimestamp(date: string, time: string): string {
+  const prefix = date === MSG_TODAY_ISO ? "Today" : (() => {
+    const d = new Date(date + "T00:00");
+    return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]} ${d.getDate()}`;
+  })();
+  return `${prefix} · ${fmtTime(time)}`;
+}
+
+function dateGroupLabel(date: string): string {
+  if (date === MSG_TODAY_ISO)     return "Today";
+  if (date === MSG_YESTERDAY_ISO) return "Yesterday";
+  return fmtDate(date);
+}
+
+function MsgAvatar({ name, size = 36 }: { name: string; size?: number }) {
+  const ini = name.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: "#EEF1FD", color: "#3E4FD3",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: Math.round(size * 0.36), fontWeight: 600, lineHeight: 1,
+    }}>
+      {ini}
+    </div>
+  );
+}
+
+function sortedMsgThreads() {
+  return [...MESSAGE_THREADS].sort((a, b) => {
+    const aL = a.messages[a.messages.length - 1];
+    const bL = b.messages[b.messages.length - 1];
+    return (`${bL.date}T${bL.time}`).localeCompare(`${aL.date}T${aL.time}`);
+  });
+}
+
+function MessagesPage() {
+  const threads = sortedMsgThreads();
+  const [activeId, setActiveId] = useState<number>(threads[0].id);
+  const [search,   setSearch]   = useState("");
+  const [inputVal, setInputVal] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+
+  const activeThread = threads.find(t => t.id === activeId)!;
+  const student      = ALUMNI.find(a => a.id === activeThread.studentId)!;
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "instant" });
+  }, [activeId]);
+
+  const visible = search.trim()
+    ? threads.filter(t => {
+        const a = ALUMNI.find(x => x.id === t.studentId);
+        return a?.name.toLowerCase().includes(search.toLowerCase());
+      })
+    : threads;
+
+  const msgs = activeThread.messages;
+  const unreadStart = activeThread.unreadCount > 0 ? msgs.length - activeThread.unreadCount : -1;
+
+  type GroupedMsg = (typeof msgs)[number] & { msgIdx: number };
+  const dateGroups: { date: string; rows: GroupedMsg[] }[] = [];
+  msgs.forEach((msg, i) => {
+    const last = dateGroups[dateGroups.length - 1];
+    if (!last || last.date !== msg.date) {
+      dateGroups.push({ date: msg.date, rows: [{ ...msg, msgIdx: i }] });
+    } else {
+      last.rows.push({ ...msg, msgIdx: i });
+    }
+  });
+
+  const divStyle: React.CSSProperties = {
+    display: "flex", alignItems: "center", gap: 12, margin: "16px 0",
+  };
+  const divLine: React.CSSProperties = { flex: 1, height: 1, background: "#E5E5EA" };
+  const divLabel: React.CSSProperties = { fontSize: 12, color: "#A0A0AA", fontWeight: 500, whiteSpace: "nowrap" };
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+
+      {/* ── Left: Thread list ── */}
+      <div style={{ width: 320, flexShrink: 0, borderRight: BORDER, display: "flex", flexDirection: "column", background: "#fff" }}>
+
+        {/* Search */}
+        <div style={{ padding: "12px 16px", borderBottom: BORDER }}>
+          <div style={{ position: "relative" }}>
+            <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#A0A0AA" strokeWidth="1.5" strokeLinecap="round">
+              <circle cx="5.5" cy="5.5" r="4"/><path d="M10 10l2.5 2.5"/>
+            </svg>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search conversations..."
+              style={{
+                width: "100%", height: 36, paddingInline: "32px 12px",
+                boxSizing: "border-box", borderRadius: 8,
+                border: "1.5px solid #E8E8EC", outline: "none",
+                fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)",
+                background: "#F8F8FA",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Thread items */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {visible.map(thread => {
+            const a      = ALUMNI.find(x => x.id === thread.studentId)!;
+            const last   = thread.messages[thread.messages.length - 1];
+            const active = thread.id === activeId;
+            const online = last.date === MSG_TODAY_ISO;
+            return (
+              <div
+                key={thread.id}
+                onClick={() => setActiveId(thread.id)}
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: 10,
+                  padding: "12px 16px", cursor: "pointer",
+                  background: active ? "#F0F2FD" : "#fff",
+                  borderLeft: active ? "3px solid #3E4FD3" : "3px solid transparent",
+                  borderBottom: BORDER,
+                  transition: `background ${MS.dFast} ${MS.eOut}`,
+                }}
+              >
+                {/* Avatar + online dot */}
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <MsgAvatar name={a.name} size={36} />
+                  {online && (
+                    <div style={{
+                      position: "absolute", bottom: 0, right: 0,
+                      width: 9, height: 9, borderRadius: "50%",
+                      background: "#22A062", border: "1.5px solid #fff",
+                    }} />
+                  )}
+                </div>
+                {/* Text */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                    <span style={{ fontSize: 14, fontWeight: active ? 600 : 500, color: "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {a.name}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#A0A0AA", flexShrink: 0, marginLeft: 8 }}>
+                      {threadTimestamp(last.date, last.time)}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "#8E8E97", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                      {last.text}
+                    </span>
+                    {thread.unreadCount > 0 && (
+                      <div style={{
+                        marginLeft: 8, flexShrink: 0,
+                        minWidth: 18, height: 18, borderRadius: 9, paddingInline: 4,
+                        background: "#22A062", color: "#fff",
+                        fontSize: 11, fontWeight: 600,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        {thread.unreadCount}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Right: Chat ── */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: "#FAFAFA" }}>
+
+        {/* Chat header */}
+        <div style={{
+          flexShrink: 0, height: 64, background: "#fff", borderBottom: BORDER,
+          paddingInline: 24, display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <MsgAvatar name={student.name} size={36} />
+            <div>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#121216", lineHeight: 1.2 }}>{student.name}</p>
+              <p style={{ margin: 0, fontSize: 12, color: "#A0A0AA", lineHeight: 1.4 }}>
+                {student.dateLastActive ? `Last active: ${fmtDate(student.dateLastActive)}` : "No recent activity"}
+              </p>
+            </div>
+          </div>
+          <button style={{
+            background: "none", border: "none", padding: 0,
+            fontSize: 13, fontWeight: 500, color: "#3E4FD3",
+            fontFamily: "var(--font-inter)", cursor: "pointer",
+          }}>
+            View Profile →
+          </button>
+        </div>
+
+        {/* Messages area */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 4px" }}>
+          {dateGroups.map(group => (
+            <div key={group.date}>
+              {/* Date divider */}
+              <div style={divStyle}>
+                <div style={divLine} />
+                <span style={divLabel}>{dateGroupLabel(group.date)}</span>
+                <div style={divLine} />
+              </div>
+
+              {group.rows.map(msg => {
+                const isStaff = msg.sender === "staff";
+                return (
+                  <div key={msg.id}>
+                    {/* Unread divider */}
+                    {msg.msgIdx === unreadStart && (
+                      <div style={{ ...divStyle, margin: "8px 0 16px" }}>
+                        <div style={divLine} />
+                        <span style={divLabel}>{activeThread.unreadCount} unread message{activeThread.unreadCount !== 1 ? "s" : ""}</span>
+                        <div style={divLine} />
+                      </div>
+                    )}
+                    {/* Bubble row */}
+                    <div style={{
+                      display: "flex",
+                      flexDirection: isStaff ? "row-reverse" : "row",
+                      alignItems: "flex-end",
+                      gap: 8, marginBottom: 10,
+                    }}>
+                      {!isStaff && <MsgAvatar name={student.name} size={28} />}
+                      <div style={{ maxWidth: "60%", display: "flex", flexDirection: "column", alignItems: isStaff ? "flex-end" : "flex-start" }}>
+                        {!isStaff && (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", marginBottom: 3 }}>
+                            {student.name}
+                          </span>
+                        )}
+                        <div style={{
+                          padding: "10px 14px",
+                          borderRadius: isStaff ? "12px 12px 4px 12px" : "4px 12px 12px 12px",
+                          background: isStaff ? "#3E4FD3" : "#fff",
+                          color: isStaff ? "#fff" : "#121216",
+                          fontSize: 14, lineHeight: 1.5,
+                          border: isStaff ? "none" : BORDER,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                        }}>
+                          {msg.text}
+                        </div>
+                        <span style={{ fontSize: 11, color: "#A0A0AA", marginTop: 4 }}>
+                          {msgTimestamp(msg.date, msg.time)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          <div ref={endRef} />
+        </div>
+
+        {/* Input bar */}
+        <div style={{
+          flexShrink: 0, borderTop: BORDER, background: "#fff",
+          padding: "10px 16px", display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <button style={{
+            width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+            background: "#F0F0F5", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#8E8E97",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13.5 7.5L7 14a4.5 4.5 0 01-6.5-6.5l7-7a3 3 0 014.5 4.5L5 12a1.5 1.5 0 01-2.5-2.5l7-7"/>
+            </svg>
+          </button>
+          <input
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && inputVal.trim()) setInputVal(""); }}
+            placeholder="Type a message..."
+            style={{
+              flex: 1, height: 36, paddingInline: 14,
+              borderRadius: 8, border: "1.5px solid #E8E8EC",
+              outline: "none", fontSize: 14, color: "#121216",
+              fontFamily: "var(--font-inter)", background: "#fff",
+            }}
+          />
+          <button
+            onClick={() => { if (inputVal.trim()) setInputVal(""); }}
+            style={{
+              width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+              background: inputVal.trim() ? "#3E4FD3" : "#E8E8EC",
+              border: "none", cursor: inputVal.trim() ? "pointer" : "default",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: `background ${MS.dFast} ${MS.eOut}`,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M12.5 7L1.5 2l2 5-2 5 11-5z" fill={inputVal.trim() ? "#fff" : "#A0A0AA"}/>
+            </svg>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ─── Content (page router) ────────────────────────────────────────────────────
 function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void }) {
   return (
@@ -3528,7 +3873,8 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
       )}
       {page === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
       {page === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
-      {page !== 1 && page !== 2 && page !== 3 && (
+      {page === 6 && <MessagesPage />}
+      {page !== 1 && page !== 2 && page !== 3 && page !== 6 && (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
         </div>
