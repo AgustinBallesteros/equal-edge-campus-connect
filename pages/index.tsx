@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, RESOURCES, RESOURCE_CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, SCRIPT_CATEGORY_COLOR, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, RESOURCES, RESOURCE_CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType, type ScriptCategory } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -4347,6 +4347,278 @@ function MessagesPage() {
   );
 }
 
+// ─── Script Library page ──────────────────────────────────────────────────────
+
+const SCRIPT_PILL_LABELS: Record<ScriptCategory, string> = {
+  "Accommodation Request":  "Accommodation",
+  "Follow-Up / Escalation": "Follow-Up",
+  "Emailing a Professor":   "Professor",
+  "Advisor Communication":  "Advisor",
+  "Peer Communication":     "Peer",
+};
+
+const SCRIPT_CATEGORIES_ORDERED: ScriptCategory[] = [
+  "Accommodation Request",
+  "Follow-Up / Escalation",
+  "Emailing a Professor",
+  "Advisor Communication",
+  "Peer Communication",
+];
+
+function fmtScriptDate(iso: string) {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${MONTH_NAMES[m - 1].slice(0, 3)} ${d}, ${iso.split("-")[0]}`;
+}
+
+function ScriptToggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div
+      onClick={e => { e.stopPropagation(); onChange(!on); }}
+      style={{
+        width: 36, height: 20, borderRadius: 10, flexShrink: 0,
+        background: on ? "#22C55E" : "#D1D5DB",
+        position: "relative", cursor: "pointer",
+        transition: `background ${MS.dFast} ${MS.eOut}`,
+      }}
+    >
+      <div style={{
+        position: "absolute", top: 2,
+        left: on ? 18 : 2,
+        width: 16, height: 16, borderRadius: "50%",
+        background: "#fff",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+        transition: `left ${MS.dFast} ${MS.eOut}`,
+      }} />
+    </div>
+  );
+}
+
+function ScriptLibraryPage() {
+  const [activeCategory, setActiveCategory] = useState<ScriptCategory | "all">("all");
+  const [selectedId,     setSelectedId]     = useState<number>(SCRIPTS[0].id);
+  const [publicState,    setPublicState]    = useState<Record<number, boolean>>(
+    () => Object.fromEntries(SCRIPTS.map(s => [s.id, s.isPublic]))
+  );
+
+  const filtered = activeCategory === "all"
+    ? SCRIPTS
+    : SCRIPTS.filter(s => s.category === activeCategory);
+
+  const selected = SCRIPTS.find(s => s.id === selectedId) ?? SCRIPTS[0];
+
+  function togglePublic(id: number, val: boolean) {
+    setPublicState(prev => ({ ...prev, [id]: val }));
+  }
+
+  const catCounts = SCRIPT_CATEGORIES_ORDERED.reduce<Record<string, number>>((acc, c) => {
+    acc[c] = SCRIPTS.filter(s => s.category === c).length;
+    return acc;
+  }, {});
+
+  // Flat preview text (collapse newlines to spaces)
+  function previewText(text: string) {
+    return text.replace(/\n+/g, "  ").trim();
+  }
+
+  const selColor = SCRIPT_CATEGORY_COLOR[selected.category];
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+
+      {/* ── Left panel (40%) ── */}
+      <div style={{
+        width: "40%", flexShrink: 0, borderRight: BORDER,
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+
+        {/* Filter pills */}
+        <div style={{
+          padding: "14px 16px 12px", borderBottom: BORDER,
+          display: "flex", gap: 6, flexWrap: "wrap",
+        }}>
+          {/* All pill */}
+          {(() => {
+            const isActive = activeCategory === "all";
+            return (
+              <button
+                onClick={() => setActiveCategory("all")}
+                style={{
+                  height: 28, paddingInline: 12, borderRadius: 14, border: "none",
+                  background: isActive ? "#3E4FD3" : "#F0F0F5",
+                  color: isActive ? "#fff" : "#4A4A55",
+                  fontSize: 12, fontWeight: isActive ? 600 : 400,
+                  fontFamily: "var(--font-inter)", cursor: "pointer",
+                }}
+              >
+                All ({SCRIPTS.length})
+              </button>
+            );
+          })()}
+          {SCRIPT_CATEGORIES_ORDERED.map(cat => {
+            const isActive = activeCategory === cat;
+            const color    = SCRIPT_CATEGORY_COLOR[cat];
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                style={{
+                  height: 28, paddingInline: 12, borderRadius: 14,
+                  border: isActive ? "none" : BORDER,
+                  background: isActive ? hexAlpha(color, 0.12) : "transparent",
+                  color: isActive ? color : "#4A4A55",
+                  fontSize: 12, fontWeight: isActive ? 600 : 400,
+                  fontFamily: "var(--font-inter)", cursor: "pointer",
+                }}
+              >
+                {SCRIPT_PILL_LABELS[cat]} ({catCounts[cat]})
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Script list */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {filtered.map((script, i) => {
+            const isSelected = script.id === selectedId;
+            const catColor   = SCRIPT_CATEGORY_COLOR[script.category];
+            const isPublic   = publicState[script.id];
+            return (
+              <div
+                key={script.id}
+                onClick={() => setSelectedId(script.id)}
+                style={{
+                  padding: "14px 16px",
+                  borderBottom: i < filtered.length - 1 ? BORDER : "none",
+                  borderLeft: `3px solid ${isSelected ? "#3E4FD3" : "transparent"}`,
+                  background: isSelected ? hexAlpha("#3E4FD3", 0.05) : "#fff",
+                  cursor: "pointer",
+                  display: "flex", flexDirection: "column", gap: 6,
+                  transition: `background ${MS.dFast} ${MS.eOut}`,
+                }}
+              >
+                {/* Top row: category badge + toggle */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, color: catColor,
+                    background: hexAlpha(catColor, 0.1),
+                    borderRadius: 5, padding: "2px 7px",
+                    letterSpacing: "0.02em", whiteSpace: "nowrap",
+                  }}>{script.category}</span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0 }}>
+                    <ScriptToggle on={isPublic} onChange={v => togglePublic(script.id, v)} />
+                    <span style={{ fontSize: 9, color: isPublic ? "#22C55E" : "#9CA3AF", fontWeight: 500 }}>
+                      {isPublic ? "Public" : "Hidden"}
+                    </span>
+                    <span style={{ fontSize: 9, color: "#9CA3AF" }}>Pre-loaded</span>
+                  </div>
+                </div>
+
+                {/* Title */}
+                <p style={{
+                  margin: 0, fontSize: 13, fontWeight: 600,
+                  color: isSelected ? "#3E4FD3" : "#121216",
+                  lineHeight: 1.35,
+                }}>
+                  {script.title}
+                </p>
+
+                {/* Preview — 2-line clamp */}
+                <p style={{
+                  margin: 0, fontSize: 11, color: "#6B7280", lineHeight: 1.5,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical" as React.CSSProperties["WebkitBoxOrient"],
+                  overflow: "hidden",
+                }}>
+                  {previewText(script.text)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Right panel (60%) ── */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* Header */}
+        <div style={{
+          padding: "16px 24px", borderBottom: BORDER,
+          display: "flex", alignItems: "flex-start", gap: 12,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{
+              display: "inline-block", marginBottom: 8,
+              fontSize: 11, fontWeight: 600, color: selColor,
+              background: hexAlpha(selColor, 0.1),
+              borderRadius: 5, padding: "2px 8px",
+            }}>{selected.category}</span>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#121216", lineHeight: 1.3 }}>
+              {selected.title}
+            </h2>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <button style={{
+              height: 34, paddingInline: 14, borderRadius: 8, border: BORDER,
+              background: "#fff", color: "#121216",
+              fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+            }}>
+              Edit
+            </button>
+            <button style={{
+              height: 34, paddingInline: 14, borderRadius: 8,
+              border: "1px solid #FCA5A5",
+              background: hexAlpha("#EF4444", 0.05), color: "#EF4444",
+              fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
+            }}>
+              Delete
+            </button>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+              <ScriptToggle
+                on={publicState[selected.id]}
+                onChange={v => togglePublic(selected.id, v)}
+              />
+              <span style={{ fontSize: 10, color: publicState[selected.id] ? "#22C55E" : "#9CA3AF", fontWeight: 500 }}>
+                {publicState[selected.id] ? "Public" : "Hidden"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Script body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
+          <p style={{
+            margin: 0,
+            fontSize: 14, lineHeight: 1.85, color: "#1A1A2E",
+            whiteSpace: "pre-wrap",
+            fontFamily: "var(--font-inter)",
+          }}>
+            {selected.text}
+          </p>
+        </div>
+
+        {/* Status bar */}
+        <div style={{
+          borderTop: BORDER, padding: "10px 24px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "#FAFAFA",
+        }}>
+          <span style={{ fontSize: 12, color: "#8E8E97" }}>
+            Last updated: {fmtScriptDate(selected.updatedDate)}
+            <span style={{ margin: "0 6px", color: "#D1D5DB" }}>·</span>
+            Created: {fmtScriptDate(selected.createdDate)}
+          </span>
+          <span style={{ fontSize: 12, color: "#8E8E97", fontStyle: "italic" }}>
+            Pre-loaded script — editable but cannot be deleted
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Resources page ───────────────────────────────────────────────────────────
 
 const RESOURCE_CATEGORIES: ResourceCategory[] = [
@@ -4840,9 +5112,10 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
       )}
       {page === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
       {page === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
+      {page === 4 && <ScriptLibraryPage />}
       {page === 6 && <MessagesPage />}
       {page === 8 && <ResourcesPage />}
-      {page !== 1 && page !== 2 && page !== 3 && page !== 6 && page !== 8 && (
+      {page !== 1 && page !== 2 && page !== 3 && page !== 4 && page !== 6 && page !== 8 && (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
         </div>

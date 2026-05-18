@@ -149,10 +149,13 @@ export const SCRIPT_CATEGORY_COLOR: Record<ScriptCategory, string> = {
 };
 
 export type Script = {
-  id:       number;
-  category: ScriptCategory;
-  title:    string;
-  text:     string;
+  id:          number;
+  category:    ScriptCategory;
+  title:       string;
+  text:        string;
+  createdDate: string;
+  updatedDate: string;
+  isPublic:    boolean;
 };
 
 export const SCRIPTS: Script[] = [
@@ -160,6 +163,7 @@ export const SCRIPTS: Script[] = [
     id: 1,
     category: "Accommodation Request",
     title: "Accommodation Request — First Ask",
+    createdDate: "2026-01-10", updatedDate: "2026-04-02", isPublic: true,
     text: `Subject: Accommodation Request — [Your Name], [Course Name]
 
 Dear Professor [Last Name],
@@ -179,6 +183,7 @@ Thank you for your support.
     id: 2,
     category: "Accommodation Request",
     title: "Accommodation Request — New Semester",
+    createdDate: "2026-01-10", updatedDate: "2026-03-15", isPublic: true,
     text: `Subject: Accommodation Renewal — [Your Name], [Course Name], [Semester]
 
 Dear Professor [Last Name],
@@ -197,6 +202,7 @@ Best regards,
     id: 3,
     category: "Accommodation Request",
     title: "Requesting Extended Time on an Exam",
+    createdDate: "2026-01-10", updatedDate: "2026-02-20", isPublic: true,
     text: `Subject: Extended Time Accommodation — [Exam Name], [Course Name]
 
 Dear Professor [Last Name],
@@ -215,6 +221,7 @@ Thank you,
     id: 4,
     category: "Follow-Up / Escalation",
     title: "Following Up After No Response",
+    createdDate: "2026-01-15", updatedDate: "2026-04-08", isPublic: true,
     text: `Subject: Follow-Up: [Original Subject Line]
 
 Dear Professor [Last Name],
@@ -233,6 +240,7 @@ Thank you,
     id: 5,
     category: "Follow-Up / Escalation",
     title: "Escalating an Unresolved Accommodation",
+    createdDate: "2026-01-15", updatedDate: "2026-03-22", isPublic: false,
     text: `Subject: Unresolved Accommodation — Request for Assistance
 
 Dear [Disability Services Coordinator Name],
@@ -252,6 +260,7 @@ Thank you for your help.
     id: 6,
     category: "Follow-Up / Escalation",
     title: "Following Up on a Grade Dispute",
+    createdDate: "2026-01-15", updatedDate: "2026-02-28", isPublic: true,
     text: `Subject: Follow-Up: Grade Review Request — [Assignment Name]
 
 Dear Professor [Last Name],
@@ -270,6 +279,7 @@ Best,
     id: 7,
     category: "Emailing a Professor",
     title: "Introducing Yourself to a Professor",
+    createdDate: "2026-01-20", updatedDate: "2026-04-15", isPublic: true,
     text: `Subject: Introduction — [Your Name], [Course Name]
 
 Dear Professor [Last Name],
@@ -289,6 +299,7 @@ Thank you for your time.
     id: 8,
     category: "Emailing a Professor",
     title: "Requesting a Meeting with a Professor",
+    createdDate: "2026-01-20", updatedDate: "2026-03-10", isPublic: true,
     text: `Subject: Office Hours / Meeting Request — [Your Name], [Course Name]
 
 Dear Professor [Last Name],
@@ -307,6 +318,7 @@ Best regards,
     id: 9,
     category: "Emailing a Professor",
     title: "Asking for Feedback on an Assignment",
+    createdDate: "2026-01-20", updatedDate: "2026-02-25", isPublic: true,
     text: `Subject: Feedback Request — [Assignment Name], [Course Name]
 
 Dear Professor [Last Name],
@@ -324,6 +336,7 @@ I am happy to visit during office hours if that would be easier. Thank you in ad
     id: 10,
     category: "Advisor Communication",
     title: "Scheduling an Advising Appointment",
+    createdDate: "2026-01-25", updatedDate: "2026-04-20", isPublic: true,
     text: `Subject: Advising Appointment Request — [Your Name], [Major], [Year]
 
 Dear [Advisor Name],
@@ -340,6 +353,7 @@ Thank you,
     id: 11,
     category: "Advisor Communication",
     title: "Checking In on Degree Progress",
+    createdDate: "2026-01-25", updatedDate: "2026-03-05", isPublic: true,
     text: `Subject: Degree Progress Check-In — [Your Name]
 
 Dear [Advisor Name],
@@ -359,6 +373,7 @@ Thank you for your continued guidance.
     id: 12,
     category: "Peer Communication",
     title: "Asking a Classmate to Join a Study Group",
+    createdDate: "2026-02-01", updatedDate: "2026-04-25", isPublic: true,
     text: `Hi [Classmate's Name],
 
 I'm [Your Name] from [Course Name]. I've been working on putting together a small study group for the upcoming [exam / project] and wanted to see if you'd be interested in joining.
