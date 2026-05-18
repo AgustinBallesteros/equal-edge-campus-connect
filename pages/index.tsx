@@ -49,8 +49,8 @@ function FadeSlot({ show, children, style }: { show: boolean; children: React.Re
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => setMounted(false), 260);
@@ -80,8 +80,8 @@ function PopoverTransition({ show, children, style }: { show: boolean; children:
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => setMounted(false), 180);
@@ -341,8 +341,8 @@ function AddStudentModal({ show, onClose }: { show: boolean; onClose: () => void
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => {
@@ -444,8 +444,8 @@ function RemoveStudentModal({ studentName, isBulk, show, onClose }: { studentNam
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => setMounted(false), 220);
@@ -2979,8 +2979,8 @@ function AssignLessonModal({ lesson, show, onClose }: {
     if (show && lesson) {
       setMounted(true);
       setSelected(new Set(ALUMNI.filter(a => a.assignedLessonIds.includes(lesson.id)).map(a => a.id)));
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => {
@@ -3407,13 +3407,30 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
   onAssignLesson:    (lesson: LessonItem) => void;
 }) {
   const [activeCategory, setActiveCategory] = useState<LessonCategory | null>(null);
+  const [displayId, setDisplayId] = useState<number | null>(activeLessonId);
+  const [pageVis,   setPageVis]   = useState(true);
+  const [slideDir,  setSlideDir]  = useState<"forward" | "back">("forward");
+  const [filterVis, setFilterVis] = useState(true);
 
-  if (activeLessonId !== null) {
+  useEffect(() => {
+    if (activeLessonId === displayId) return;
+    setSlideDir(activeLessonId !== null ? "forward" : "back");
+    setPageVis(false);
+    const t = setTimeout(() => {
+      setDisplayId(activeLessonId);
+      setTimeout(() => setPageVis(true), 16);
+    }, 160);
+    return () => clearTimeout(t);
+  }, [activeLessonId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (displayId !== null) {
     return (
-      <LessonDetailPage
-        lessonId={activeLessonId}
-        onAssign={() => { const l = LESSONS.find(x => x.id === activeLessonId); if (l) onAssignLesson(l); }}
-      />
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", opacity: pageVis ? 1 : 0, transform: pageVis ? "translateX(0)" : slideDir === "forward" ? "translateX(18px)" : "translateX(-18px)", transition: "opacity 160ms ease, transform 160ms ease" }}>
+        <LessonDetailPage
+          lessonId={displayId}
+          onAssign={() => { const l = LESSONS.find(x => x.id === displayId); if (l) onAssignLesson(l); }}
+        />
+      </div>
     );
   }
 
@@ -3430,6 +3447,8 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
   const visible = activeCategory ? LESSONS.filter(l => l.category === activeCategory) : LESSONS;
 
   function toggleCategory(cat: LessonCategory) {
+    setFilterVis(false);
+    setTimeout(() => setFilterVis(true), 80);
     setActiveCategory(prev => prev === cat ? null : cat);
   }
 
@@ -3443,6 +3462,7 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
   };
 
   return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", opacity: pageVis ? 1 : 0, transform: pageVis ? "translateX(0)" : slideDir === "forward" ? "translateX(18px)" : "translateX(-18px)", transition: "opacity 160ms ease, transform 160ms ease" }}>
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
 
       {/* Category filter bar */}
@@ -3453,7 +3473,7 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
       }}>
         {/* All */}
         <button
-          onClick={() => setActiveCategory(null)}
+          onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setActiveCategory(null); }}
           style={{
             ...pillBase,
             background: activeCategory === null ? "#3E4FD3" : "#fff",
@@ -3495,7 +3515,7 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
       </div>
 
       {/* Card grid */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: 24, opacity: filterVis ? 1 : 0, transition: "opacity 80ms ease" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
           {visible.map(lesson => (
             <LessonCard key={lesson.id} lesson={lesson} onAssign={() => onAssignLesson(lesson)} onOpenDetail={() => setActiveLessonId(lesson.id)} />
@@ -3519,7 +3539,7 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
             {" "}lessons
             <span style={{ marginInline: 8, color: "#D0D0D8" }}>·</span>
             <button
-              onClick={() => setActiveCategory(null)}
+              onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setActiveCategory(null); }}
               style={{
                 background: "none", border: "none", padding: 0,
                 fontSize: 13, fontWeight: 500, color: "#3E4FD3",
@@ -3532,6 +3552,7 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
         )}
       </div>
 
+    </div>
     </div>
   );
 }
@@ -3560,8 +3581,8 @@ function NewMessageModal({ show, onClose }: { show: boolean; onClose: () => void
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => {
@@ -4370,8 +4391,8 @@ function NewScriptModal({ show, onClose }: { show: boolean; onClose: () => void 
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => {
@@ -4460,8 +4481,8 @@ function EditScriptModal({ script, show, onClose }: { script: { id: number; titl
       setCategory(script.category);
       setBody(script.text);
       setIsVisible(script.isPublic);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => setMounted(false), 220);
@@ -4546,8 +4567,8 @@ function DeleteScriptModal({ scriptTitle, show, onClose }: { scriptTitle: string
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => setMounted(false), 220);
@@ -4630,6 +4651,7 @@ function ScriptLibraryPage({ onNewScript }: { onNewScript: () => void }) {
   );
   const [editOpen,   setEditOpen]   = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [filterVis,  setFilterVis]  = useState(true);
 
   const filtered = activeCategory === "all"
     ? SCRIPTS
@@ -4673,7 +4695,7 @@ function ScriptLibraryPage({ onNewScript }: { onNewScript: () => void }) {
             const isActive = activeCategory === "all";
             return (
               <button
-                onClick={() => setActiveCategory("all")}
+                onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setActiveCategory("all"); }}
                 style={{
                   height: 28, paddingInline: 12, borderRadius: 14, border: "none",
                   background: isActive ? "#3E4FD3" : "#F0F0F5",
@@ -4692,7 +4714,7 @@ function ScriptLibraryPage({ onNewScript }: { onNewScript: () => void }) {
             return (
               <button
                 key={cat}
-                onClick={() => setActiveCategory(cat)}
+                onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setActiveCategory(cat); }}
                 style={{
                   height: 28, paddingInline: 12, borderRadius: 14,
                   border: isActive ? "none" : BORDER,
@@ -4709,7 +4731,7 @@ function ScriptLibraryPage({ onNewScript }: { onNewScript: () => void }) {
         </div>
 
         {/* Script list */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ flex: 1, overflowY: "auto", opacity: filterVis ? 1 : 0, transition: "opacity 80ms ease" }}>
           {filtered.map((script, i) => {
             const isSelected = script.id === selectedId;
             const catColor   = SCRIPT_CATEGORY_COLOR[script.category];
@@ -4893,8 +4915,8 @@ function NewEventModal({ show, onClose }: { show: boolean; onClose: () => void }
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => {
@@ -5068,8 +5090,8 @@ function EditEventModal({ event: evt, show, onClose }: { event: CalEventForModal
       setStartTime(start || "9:00 AM");
       setEndTime(end || "10:00 AM");
       setNotes(evt.description);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => setMounted(false), 220);
@@ -5163,8 +5185,8 @@ function DeleteEventModal({ eventTitle, show, onClose }: { eventTitle: string; s
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => setMounted(false), 220);
@@ -5520,6 +5542,7 @@ function ResourcesPage() {
   const [activeCategory, setActiveCategory] = useState<ResourceCategory | "all">("all");
   const [typeFilter,     setTypeFilter]     = useState<ResourceTypeFilter>("All");
   const [search,         setSearch]         = useState("");
+  const [filterVis,      setFilterVis]      = useState(true);
 
   const catCounts = RESOURCE_CATEGORIES.reduce<Record<string, number>>((acc, cat) => {
     acc[cat] = RESOURCES.filter(r => r.category === cat).length;
@@ -5559,7 +5582,7 @@ function ResourcesPage() {
           const isActive = activeCategory === "all";
           return (
             <button
-              onClick={() => setActiveCategory("all")}
+              onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setActiveCategory("all"); }}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "8px 16px", background: isActive ? hexAlpha("#3E4FD3", 0.06) : "transparent",
@@ -5586,7 +5609,7 @@ function ResourcesPage() {
           return (
             <button
               key={cat}
-              onClick={() => { setActiveCategory(cat); setTypeFilter("All"); }}
+              onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setActiveCategory(cat); setTypeFilter("All"); }}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "8px 16px", background: isActive ? hexAlpha(color, 0.06) : "transparent",
@@ -5631,7 +5654,7 @@ function ResourcesPage() {
               return (
                 <button
                   key={tf}
-                  onClick={() => setTypeFilter(tf)}
+                  onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setTypeFilter(tf); }}
                   style={{
                     padding: "5px 12px", borderRadius: 6, border: "none",
                     background: isActive ? hexAlpha("#3E4FD3", 0.08) : "transparent",
@@ -5674,7 +5697,7 @@ function ResourcesPage() {
         </div>
 
         {/* Card grid */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: 24, opacity: filterVis ? 1 : 0, transition: "opacity 80ms ease" }}>
           {filtered.length === 0 ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200 }}>
               <span style={{ color: "#ccc", fontSize: 13 }}>No resources match your filters</span>
@@ -5771,8 +5794,8 @@ function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => voi
   useEffect(() => {
     if (show) {
       setMounted(true);
-      const id = requestAnimationFrame(() => setVis(true));
-      return () => cancelAnimationFrame(id);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
     } else {
       setVis(false);
       const t = setTimeout(() => {
