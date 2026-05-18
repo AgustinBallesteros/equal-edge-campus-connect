@@ -5670,27 +5670,30 @@ function ResourcesPage() {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           height: 52, flexShrink: 0,
         }}>
-          <div style={{ display: "flex", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", height: 32, background: "#F8F8FA", borderRadius: 8, padding: 2, border: BORDER }}>
             {typeFilters.map(tf => {
               const isActive = typeFilter === tf;
               return (
                 <button
                   key={tf}
-                  onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setTypeFilter(tf); }}
+                  onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 80); setTypeFilter(tf); }}
                   style={{
-                    padding: "5px 12px", borderRadius: 6, border: "none",
-                    background: isActive ? hexAlpha("#3E4FD3", 0.08) : "transparent",
-                    color: isActive ? "#3E4FD3" : "#8E8E97",
-                    fontWeight: isActive ? 600 : 400, fontSize: 13,
-                    cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: 6,
+                    height: 28, paddingInline: 10, borderRadius: 6, border: "none",
+                    background: isActive ? "#fff" : "transparent",
+                    color: isActive ? "#121216" : "#8E8E97",
+                    fontSize: 12, fontWeight: isActive ? 500 : 400,
+                    fontFamily: "var(--font-inter)", cursor: "pointer",
+                    boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                    transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+                    whiteSpace: "nowrap",
+                    display: "inline-flex", alignItems: "center", gap: 6,
                   }}
                 >
                   {tf}
                   <span style={{
                     fontSize: 11, fontWeight: 600,
-                    background: isActive ? "#3E4FD3" : "#F0F0F5",
-                    color: isActive ? "#fff" : "#8E8E97",
+                    color: isActive ? "#121216" : "#A0A0AA",
+                    background: isActive ? "#EDEDED" : "#F0F0F5",
                     height: 18, minWidth: 18, borderRadius: 10,
                     display: "inline-flex", alignItems: "center", justifyContent: "center",
                     paddingInline: 5,
