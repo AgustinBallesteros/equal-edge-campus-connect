@@ -523,6 +523,7 @@ function makePageConfigs(
   onLessonBack:    () => void,
   onAssignLesson:  () => void,
   onAddResource:   () => void,
+  onNewScript:     () => void,
 ): Record<NavId, PageConfig> {
   const activeLesson = activeLessonId ? LESSONS.find(l => l.id === activeLessonId) ?? null : null;
   return {
@@ -539,7 +540,7 @@ function makePageConfigs(
           actions: <BtnMain label="Assign Lesson" onClick={onAssignLesson} />,
         }
       : { title: "Learn Library",  description: "Browse and assign lessons to students", actions: null },
-    4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" /> },
+    4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" onClick={onNewScript} /> },
     5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
     6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="+ New Message" onClick={onNewMessage} /> },
     7: { title: "Events",         description: "Shared with all students in the app",                    actions: <BtnMain label="New Event" /> },
@@ -4347,6 +4348,233 @@ function MessagesPage() {
   );
 }
 
+// ─── Script modals ────────────────────────────────────────────────────────────
+
+const SCRIPT_CATEGORIES_LIST: ScriptCategory[] = [
+  "Accommodation Request",
+  "Follow-Up / Escalation",
+  "Emailing a Professor",
+  "Advisor Communication",
+  "Peer Communication",
+];
+
+function NewScriptModal({ show, onClose }: { show: boolean; onClose: () => void }) {
+  const [mounted,   setMounted]  = useState(show);
+  const [vis,       setVis]      = useState(show);
+  const [title,     setTitle]    = useState("");
+  const [category,  setCategory] = useState<ScriptCategory>("Accommodation Request");
+  const [body,      setBody]     = useState("");
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => {
+        setMounted(false);
+        setTitle(""); setCategory("Accommodation Request"); setBody(""); setIsVisible(true);
+      }, 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", boxSizing: "border-box",
+    borderRadius: 8, border: "1.5px solid #E8E8EC",
+    fontSize: 14, color: "#121216", fontFamily: "var(--font-inter)",
+    outline: "none", background: "#fff",
+  };
+
+  const canSave = title.trim().length > 0 && body.trim().length > 0;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", opacity: vis ? 1 : 0, transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)", transition: "opacity 220ms ease, transform 220ms ease", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "20px 24px 16px" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#121216" }}>New Script</h2>
+        </div>
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+
+          {/* Title */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Script Title</label>
+            <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Accommodation Request — Second Ask" style={{ ...inputStyle, height: 40, paddingInline: 12 }} />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Category</label>
+            <div style={{ position: "relative" }}>
+              <select value={category} onChange={e => setCategory(e.target.value as ScriptCategory)} style={{ ...inputStyle, height: 40, paddingInline: 12, paddingRight: 32, appearance: "none", cursor: "pointer" }}>
+                {SCRIPT_CATEGORIES_LIST.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <svg style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8E8E97" }} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Script Body</label>
+            <textarea value={body} onChange={e => setBody(e.target.value)} rows={8} placeholder={"Subject: …\n\nDear Professor [Last Name],\n\n…"} style={{ ...inputStyle, padding: "10px 12px", resize: "vertical", lineHeight: 1.7, border: `1.5px solid ${body.length > 0 ? "#3E4FD3" : "#E8E8EC"}` }} />
+          </div>
+
+          {/* Visibility toggle row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 10, border: `1px solid ${hexAlpha("#22C55E", 0.4)}`, background: hexAlpha("#22C55E", 0.05) }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "#121216" }}>Make this script visible in the student app</span>
+            <ScriptToggle on={isVisible} onChange={setIsVisible} />
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
+          <button disabled={!canSave} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: canSave ? "#3E4FD3" : "#C7C7D0", color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: canSave ? "pointer" : "not-allowed", transition: `background ${MS.dFast} ${MS.eOut}` }}>Save Script</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditScriptModal({ script, show, onClose }: { script: { id: number; title: string; category: ScriptCategory; text: string; isPublic: boolean } | null; show: boolean; onClose: () => void }) {
+  const [mounted,   setMounted]  = useState(show);
+  const [vis,       setVis]      = useState(show);
+  const [title,     setTitle]    = useState("");
+  const [category,  setCategory] = useState<ScriptCategory>("Accommodation Request");
+  const [body,      setBody]     = useState("");
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    if (show && script) {
+      setMounted(true);
+      setTitle(script.title);
+      setCategory(script.category);
+      setBody(script.text);
+      setIsVisible(script.isPublic);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 220);
+      return () => clearTimeout(t);
+    }
+  }, [show, script]);
+
+  if (!mounted) return null;
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", boxSizing: "border-box",
+    borderRadius: 8, border: "1.5px solid #E8E8EC",
+    fontSize: 14, color: "#121216", fontFamily: "var(--font-inter)",
+    outline: "none", background: "#fff",
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", opacity: vis ? 1 : 0, transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)", transition: "opacity 220ms ease, transform 220ms ease", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "20px 24px 16px" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#121216" }}>Edit Script</h2>
+        </div>
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+
+          {/* Pre-loaded warning */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "11px 14px", borderRadius: 8, background: hexAlpha("#F59E0B", 0.08), border: `1px solid ${hexAlpha("#F59E0B", 0.35)}` }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ color: "#D97706", flexShrink: 0, marginTop: 1 }}>
+              <path d="M8 1.5L1 14h14L8 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+              <path d="M8 6v4M8 11.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            <span style={{ fontSize: 13, color: "#92400E", lineHeight: 1.5 }}>This is a pre-loaded script. Your changes will override the default.</span>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Script Title</label>
+            <input type="text" value={title} onChange={e => setTitle(e.target.value)} style={{ ...inputStyle, height: 40, paddingInline: 12 }} />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Category</label>
+            <div style={{ position: "relative" }}>
+              <select value={category} onChange={e => setCategory(e.target.value as ScriptCategory)} style={{ ...inputStyle, height: 40, paddingInline: 12, paddingRight: 32, appearance: "none", cursor: "pointer" }}>
+                {SCRIPT_CATEGORIES_LIST.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <svg style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8E8E97" }} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Script Body</label>
+            <textarea value={body} onChange={e => setBody(e.target.value)} rows={8} style={{ ...inputStyle, padding: "10px 12px", resize: "vertical", lineHeight: 1.7 }} />
+          </div>
+
+          {/* Visibility toggle row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: 10, border: `1px solid ${hexAlpha("#22C55E", 0.4)}`, background: hexAlpha("#22C55E", 0.05) }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "#121216" }}>Make this script visible in the student app</span>
+            <ScriptToggle on={isVisible} onChange={setIsVisible} />
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
+          <button style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: "#3E4FD3", color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteScriptModal({ scriptTitle, show, onClose }: { scriptTitle: string; show: boolean; onClose: () => void }) {
+  const [mounted, setMounted] = useState(show);
+  const [vis,     setVis]     = useState(show);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", opacity: vis ? 1 : 0, transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)", transition: "opacity 220ms ease, transform 220ms ease" }}>
+        <div style={{ padding: "24px 24px 20px" }}>
+          <h2 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 700, color: "#121216" }}>Delete Script</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "#4A4A55", lineHeight: 1.6 }}>
+            This will permanently delete <strong>"{scriptTitle}"</strong>. Students will immediately lose access if it was public.<br />This cannot be undone.
+          </p>
+        </div>
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Script Library page ──────────────────────────────────────────────────────
 
 const SCRIPT_PILL_LABELS: Record<ScriptCategory, string> = {
@@ -4393,12 +4621,14 @@ function ScriptToggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =>
   );
 }
 
-function ScriptLibraryPage() {
+function ScriptLibraryPage({ onNewScript }: { onNewScript: () => void }) {
   const [activeCategory, setActiveCategory] = useState<ScriptCategory | "all">("all");
   const [selectedId,     setSelectedId]     = useState<number>(SCRIPTS[0].id);
   const [publicState,    setPublicState]    = useState<Record<number, boolean>>(
     () => Object.fromEntries(SCRIPTS.map(s => [s.id, s.isPublic]))
   );
+  const [editOpen,   setEditOpen]   = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const filtered = activeCategory === "all"
     ? SCRIPTS
@@ -4423,6 +4653,7 @@ function ScriptLibraryPage() {
   const selColor = SCRIPT_CATEGORY_COLOR[selected.category];
 
   return (
+    <>
     <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
 
       {/* ── Left panel (40%) ── */}
@@ -4563,14 +4794,14 @@ function ScriptLibraryPage() {
 
           {/* Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <button style={{
+            <button onClick={() => setEditOpen(true)} style={{
               height: 34, paddingInline: 14, borderRadius: 8, border: BORDER,
               background: "#fff", color: "#121216",
               fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer",
             }}>
               Edit
             </button>
-            <button style={{
+            <button onClick={() => setDeleteOpen(true)} style={{
               height: 34, paddingInline: 14, borderRadius: 8,
               border: "1px solid #FCA5A5",
               background: hexAlpha("#EF4444", 0.05), color: "#EF4444",
@@ -4619,6 +4850,18 @@ function ScriptLibraryPage() {
         </div>
       </div>
     </div>
+
+    <EditScriptModal
+      script={selected}
+      show={editOpen}
+      onClose={() => setEditOpen(false)}
+    />
+    <DeleteScriptModal
+      scriptTitle={selected.title}
+      show={deleteOpen}
+      onClose={() => setDeleteOpen(false)}
+    />
+    </>
   );
 }
 
@@ -5105,7 +5348,7 @@ function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => voi
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void }) {
+function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff" }}>
       {page === 1 && (
@@ -5115,7 +5358,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
       )}
       {page === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
       {page === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
-      {page === 4 && <ScriptLibraryPage />}
+      {page === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
       {page === 6 && <MessagesPage />}
       {page === 8 && <ResourcesPage />}
       {page !== 1 && page !== 2 && page !== 3 && page !== 4 && page !== 6 && page !== 8 && (
@@ -5136,6 +5379,7 @@ export default function Home() {
   const [importCSVOpen,    setImportCSVOpen]    = useState(false);
   const [newMessageOpen,   setNewMessageOpen]   = useState(false);
   const [addResourceOpen,  setAddResourceOpen]  = useState(false);
+  const [newScriptOpen,    setNewScriptOpen]    = useState(false);
   const [activeLessonId,   setActiveLessonId]   = useState<number | null>(null);
   const [assignLessonItem, setAssignLessonItem] = useState<LessonItem | null>(null);
 
@@ -5152,6 +5396,7 @@ export default function Home() {
     () => setActiveLessonId(null),
     () => { const l = LESSONS.find(l => l.id === activeLessonId); if (l) setAssignLessonItem(l); },
     () => setAddResourceOpen(true),
+    () => setNewScriptOpen(true),
   );
 
   return (
@@ -5164,11 +5409,13 @@ export default function Home() {
           importOpen={importCSVOpen} onImportClose={() => setImportCSVOpen(false)}
           activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId}
           onAssignLesson={(l) => setAssignLessonItem(l)}
+          onNewScript={() => setNewScriptOpen(true)}
         />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
       <NewMessageModal show={newMessageOpen} onClose={() => setNewMessageOpen(false)} />
       <AddResourceModal show={addResourceOpen} onClose={() => setAddResourceOpen(false)} />
+      <NewScriptModal show={newScriptOpen} onClose={() => setNewScriptOpen(false)} />
       <AssignLessonModal
         lesson={assignLessonItem}
         show={assignLessonItem !== null}
