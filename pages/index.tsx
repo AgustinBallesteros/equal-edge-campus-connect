@@ -4870,15 +4870,18 @@ function ScriptLibraryPage({ onNewScript }: { onNewScript: () => void }) {
 const DOW_FULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
 function EventsPage() {
-  const [calYear,  setCalYear]  = useState(CAL_TODAY_YEAR);
-  const [calMonth, setCalMonth] = useState(CAL_TODAY_MONTH);
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
+  const [calYear,     setCalYear]     = useState(CAL_TODAY_YEAR);
+  const [calMonth,    setCalMonth]    = useState(CAL_TODAY_MONTH);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [openMenu,    setOpenMenu]    = useState<number | null>(null);
 
   function prevMonth() {
+    setSelectedDay(null);
     if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
     else setCalMonth(m => m - 1);
   }
   function nextMonth() {
+    setSelectedDay(null);
     if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
     else setCalMonth(m => m + 1);
   }
@@ -4893,15 +4896,23 @@ function EventsPage() {
 
   const eventDays = new Set(monthEvents.map(e => new Date(e.date + "T00:00").getDate()));
 
-  // Group events by date string
+  const visibleEvents = selectedDay !== null
+    ? monthEvents.filter(e => new Date(e.date + "T00:00").getDate() === selectedDay)
+    : monthEvents;
+
+  // Group visible events by date string
   const groups: { dateLabel: string; events: typeof monthEvents }[] = [];
-  for (const evt of monthEvents) {
+  for (const evt of visibleEvents) {
     const d   = new Date(evt.date + "T00:00");
     const lbl = `${DOW_FULL[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
     const existing = groups.find(g => g.dateLabel === lbl);
     if (existing) existing.events.push(evt);
     else groups.push({ dateLabel: lbl, events: [evt] });
   }
+
+  const rightHeading = selectedDay !== null
+    ? `${DOW_FULL[new Date(calYear, calMonth, selectedDay).getDay()]}, ${MONTH_NAMES[calMonth]} ${selectedDay}`
+    : `Events in ${MONTH_NAMES[calMonth]} ${calYear}`;
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
@@ -4943,24 +4954,33 @@ function EventsPage() {
         {/* Day cells */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: 2 }}>
           {calCells.map((day, i) => {
-            const isToday  = isThisMonth && day === CAL_TODAY_DAY;
-            const hasEvent = day !== null && eventDays.has(day);
+            const isToday    = isThisMonth && day === CAL_TODAY_DAY;
+            const isSelected = day !== null && day === selectedDay;
+            const hasEvent   = day !== null && eventDays.has(day);
+            // selected → solid blue; today (unselected) → light tint; neither → transparent
+            const bgColor = isSelected ? "#3E4FD3" : isToday ? "#EDEEFD" : "transparent";
+            const textColor = isSelected ? "#fff" : isToday ? "#3E4FD3" : day ? "#121216" : "transparent";
             return (
-              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", height: 38 }}>
+              <div
+                key={i}
+                onClick={() => day && setSelectedDay(isSelected ? null : day)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", height: 38, cursor: day ? "pointer" : "default" }}
+              >
                 <div style={{
                   width: 32, height: 32, borderRadius: "50%",
-                  background: isToday ? "#3E4FD3" : "transparent",
+                  background: bgColor,
                   display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: `background ${MS.dFast} ${MS.eOut}`,
                 }}>
                   <span style={{
                     fontSize: 13,
-                    color: isToday ? "#fff" : day ? "#121216" : "transparent",
-                    fontWeight: isToday ? 700 : 400,
+                    color: textColor,
+                    fontWeight: isToday || isSelected ? 700 : 400,
                   }}>
                     {day ?? ""}
                   </span>
                 </div>
-                {hasEvent && (
+                {hasEvent && !isSelected && (
                   <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#3E4FD3", marginTop: 1 }} />
                 )}
               </div>
@@ -4972,13 +4992,23 @@ function EventsPage() {
       {/* ── Events column (70%) ── */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Header */}
-        <div style={{ padding: "28px 32px 16px", borderBottom: BORDER, flexShrink: 0 }}>
-          <h2 style={{ margin: "0 0 2px", fontSize: 18, fontWeight: 700, color: "#121216" }}>
-            Events in {MONTH_NAMES[calMonth]} {calYear}
-          </h2>
-          <p style={{ margin: 0, fontSize: 13, color: "#8E8E97" }}>
-            {monthEvents.length} event{monthEvents.length !== 1 ? "s" : ""}
-          </p>
+        <div style={{ padding: "28px 32px 16px", borderBottom: BORDER, flexShrink: 0, display: "flex", alignItems: "baseline", gap: 12 }}>
+          <div>
+            <h2 style={{ margin: "0 0 2px", fontSize: 18, fontWeight: 700, color: "#121216" }}>
+              {rightHeading}
+            </h2>
+            <p style={{ margin: 0, fontSize: 13, color: "#8E8E97" }}>
+              {visibleEvents.length} event{visibleEvents.length !== 1 ? "s" : ""}
+              {selectedDay !== null && (
+                <button
+                  onClick={() => setSelectedDay(null)}
+                  style={{ marginLeft: 10, background: "none", border: "none", fontSize: 12, color: "#3E4FD3", cursor: "pointer", fontFamily: "var(--font-inter)", padding: 0 }}
+                >
+                  Show all ›
+                </button>
+              )}
+            </p>
+          </div>
         </div>
 
         {/* Scrollable list */}
