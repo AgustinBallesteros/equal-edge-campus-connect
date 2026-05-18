@@ -4686,49 +4686,62 @@ function ScriptLibraryPage({ onNewScript }: { onNewScript: () => void }) {
       }}>
 
         {/* Filter pills */}
-        <div style={{
-          padding: "14px 16px 12px", borderBottom: BORDER,
-          display: "flex", gap: 6, flexWrap: "wrap",
-        }}>
-          {/* All pill */}
-          {(() => {
-            const isActive = activeCategory === "all";
-            return (
+        {(() => {
+          const pillBase: React.CSSProperties = {
+            height: 32, paddingInline: 14, borderRadius: 20,
+            border: BORDER, fontSize: 13, fontWeight: 500,
+            fontFamily: "var(--font-inter)", cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 5,
+            transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}, border-color ${MS.dFast} ${MS.eOut}`,
+            whiteSpace: "nowrap",
+          };
+          return (
+            <div style={{
+              padding: "10px 16px", borderBottom: BORDER,
+              display: "flex", gap: 8, flexWrap: "wrap",
+            }}>
               <button
-                onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setActiveCategory("all"); }}
+                onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 80); setActiveCategory("all"); }}
                 style={{
-                  height: 28, paddingInline: 12, borderRadius: 14, border: "none",
-                  background: isActive ? "#3E4FD3" : "#F0F0F5",
-                  color: isActive ? "#fff" : "#4A4A55",
-                  fontSize: 12, fontWeight: isActive ? 600 : 400,
-                  fontFamily: "var(--font-inter)", cursor: "pointer",
+                  ...pillBase,
+                  background:  activeCategory === "all" ? "#3E4FD3" : "#fff",
+                  color:       activeCategory === "all" ? "#fff"    : "#121216",
+                  borderColor: activeCategory === "all" ? "#3E4FD3" : "#E5E5EA",
                 }}
               >
-                All ({SCRIPTS.length})
+                All
               </button>
-            );
-          })()}
-          {SCRIPT_CATEGORIES_ORDERED.map(cat => {
-            const isActive = activeCategory === cat;
-            const color    = SCRIPT_CATEGORY_COLOR[cat];
-            return (
-              <button
-                key={cat}
-                onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 16); setActiveCategory(cat); }}
-                style={{
-                  height: 28, paddingInline: 12, borderRadius: 14,
-                  border: isActive ? "none" : BORDER,
-                  background: isActive ? hexAlpha(color, 0.12) : "transparent",
-                  color: isActive ? color : "#4A4A55",
-                  fontSize: 12, fontWeight: isActive ? 600 : 400,
-                  fontFamily: "var(--font-inter)", cursor: "pointer",
-                }}
-              >
-                {SCRIPT_PILL_LABELS[cat]} ({catCounts[cat]})
-              </button>
-            );
-          })}
-        </div>
+              {SCRIPT_CATEGORIES_ORDERED.map(cat => {
+                const isActive = activeCategory === cat;
+                const color    = SCRIPT_CATEGORY_COLOR[cat];
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => { setFilterVis(false); setTimeout(() => setFilterVis(true), 80); setActiveCategory(cat); }}
+                    style={{
+                      ...pillBase,
+                      background:  isActive ? hexAlpha(color, 0.12) : "#fff",
+                      color:       isActive ? color : "#4A4A55",
+                      borderColor: isActive ? hexAlpha(color, 0.4)  : "#E5E5EA",
+                    }}
+                  >
+                    {SCRIPT_PILL_LABELS[cat]}
+                    <span style={{
+                      fontSize: 11, fontWeight: 600,
+                      color: isActive ? color : "#A0A0AA",
+                      background: isActive ? hexAlpha(color, 0.15) : "#F0F0F5",
+                      height: 18, minWidth: 18, borderRadius: 10,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      paddingInline: 5,
+                    }}>
+                      {catCounts[cat]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Script list */}
         <div style={{ flex: 1, overflowY: "auto", opacity: filterVis ? 1 : 0, transition: "opacity 80ms ease" }}>
