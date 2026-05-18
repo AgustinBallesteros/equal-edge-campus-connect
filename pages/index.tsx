@@ -2412,8 +2412,17 @@ function RosterPage() {
                   boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                   transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
                   whiteSpace: "nowrap",
+                  display: "inline-flex", alignItems: "center", gap: 6,
                 }}>
-                  {f} ({counts[f]})
+                  {f}
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    color: active ? "#121216" : "#A0A0AA",
+                    background: active ? "#EDEDED" : "#F0F0F5",
+                    height: 18, minWidth: 18, borderRadius: 10,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    paddingInline: 5,
+                  }}>{counts[f]}</span>
                 </button>
               );
             })}
@@ -5682,7 +5691,9 @@ function ResourcesPage() {
                     fontSize: 11, fontWeight: 600,
                     background: isActive ? "#3E4FD3" : "#F0F0F5",
                     color: isActive ? "#fff" : "#8E8E97",
-                    borderRadius: 8, padding: "1px 6px",
+                    height: 18, minWidth: 18, borderRadius: 10,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    paddingInline: 5,
                   }}>{typeCounts[tf]}</span>
                 </button>
               );
