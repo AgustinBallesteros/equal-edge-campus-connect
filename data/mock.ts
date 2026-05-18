@@ -640,19 +640,21 @@ export const MOCK_TODAY = { year: 2026, month: 4 /* 0-indexed, May */, day: 14 }
 // ─── Calendar events ──────────────────────────────────────────────────────────
 
 export type CalendarEvent = {
-  id:        number;
-  title:     string;
-  date:      string; // ISO date
-  timeLabel: string;
+  id:          number;
+  title:       string;
+  date:        string; // ISO date
+  timeLabel:   string; // short display used in dashboard widget
+  timeFull:    string; // full AM/PM display used in Events page
+  description: string;
 };
 
 export const CALENDAR_EVENTS: CalendarEvent[] = [
-  { id: 1, title: "SAS Drop-In Hours",          date: "2026-05-14", timeLabel: "10:00–12:00" },
-  { id: 2, title: "Financial Aid Deadline",      date: "2026-05-15", timeLabel: "by 5:00 PM"  },
-  { id: 3, title: "Disability Services Meeting", date: "2026-05-20", timeLabel: "2:00–3:30"   },
-  { id: 4, title: "Academic Advising Day",       date: "2026-05-21", timeLabel: "9:00–4:00"   },
-  { id: 5, title: "End of Semester Check-In",    date: "2026-05-28", timeLabel: "1:00–2:00"   },
-  { id: 6, title: "Graduation Rehearsal",        date: "2026-05-30", timeLabel: "10:00–1:00"  },
+  { id: 1, title: "SAS Drop-In Hours",               date: "2026-05-14", timeLabel: "10:00 AM – 12:00 PM", timeFull: "10:00 AM – 12:00 PM", description: "Ewington Hall Room 204. No appointment needed. Come with questions about accommodations, testing center scheduling, or any disability services concern." },
+  { id: 2, title: "Financial Aid Deadline",           date: "2026-05-15", timeLabel: "by 5:00 PM",          timeFull: "by 5:00 PM",          description: "Submit your FAFSA verification documents by 5:00 PM to the Financial Aid office in Rockwell Hall. Late submissions will not be accepted for this cycle." },
+  { id: 3, title: "Disability Services Info Session", date: "2026-05-20", timeLabel: "2:00 PM – 3:30 PM",   timeFull: "2:00 PM – 3:30 PM",   description: "Virtual — Zoom link in your student portal. Learn about accommodation renewal, DSO updates for the fall semester, and how to request new accommodations." },
+  { id: 4, title: "Academic Advising Day",            date: "2026-05-21", timeLabel: "9:00 AM – 4:00 PM",   timeFull: "9:00 AM – 4:00 PM",   description: "Main Campus Advising Center. Walk-ins welcome. Bring your course list and any transfer credit questions. Priority advising for graduating seniors." },
+  { id: 5, title: "End of Semester Check-In",         date: "2026-05-28", timeLabel: "1:00 PM – 2:00 PM",   timeFull: "1:00 PM – 2:00 PM",   description: "Virtual check-in with your assigned advisor to review your semester progress, flag any incomplete grades, and confirm plans for the summer or fall term." },
+  { id: 6, title: "Graduation Rehearsal",             date: "2026-05-31", timeLabel: "10:00 AM – 1:00 PM",  timeFull: "10:00 AM – 1:00 PM",  description: "University Fieldhouse. Mandatory for all May graduates. Cap and gown must be picked up prior to rehearsal. Parking available in Lot C and Lot D." },
 ];
 
 // ─── Graph data (0–100 scale) ─────────────────────────────────────────────────

@@ -4865,6 +4865,250 @@ function ScriptLibraryPage({ onNewScript }: { onNewScript: () => void }) {
   );
 }
 
+// ─── Events page ──────────────────────────────────────────────────────────────
+
+const DOW_FULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+function EventsPage() {
+  const [calYear,  setCalYear]  = useState(CAL_TODAY_YEAR);
+  const [calMonth, setCalMonth] = useState(CAL_TODAY_MONTH);
+  const [openMenu, setOpenMenu] = useState<number | null>(null);
+
+  function prevMonth() {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  }
+
+  const calCells    = buildCalendarGrid(calYear, calMonth);
+  const isThisMonth = calYear === CAL_TODAY_YEAR && calMonth === CAL_TODAY_MONTH;
+
+  const monthEvents = CALENDAR_EVENTS.filter(e => {
+    const d = new Date(e.date + "T00:00");
+    return d.getFullYear() === calYear && d.getMonth() === calMonth;
+  }).sort((a, b) => a.date.localeCompare(b.date));
+
+  const eventDays = new Set(monthEvents.map(e => new Date(e.date + "T00:00").getDate()));
+
+  // Group events by date string
+  const groups: { dateLabel: string; events: typeof monthEvents }[] = [];
+  for (const evt of monthEvents) {
+    const d   = new Date(evt.date + "T00:00");
+    const lbl = `${DOW_FULL[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+    const existing = groups.find(g => g.dateLabel === lbl);
+    if (existing) existing.events.push(evt);
+    else groups.push({ dateLabel: lbl, events: [evt] });
+  }
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+
+      {/* ── Calendar column (30%) ── */}
+      <div style={{
+        width: "30%", flexShrink: 0, borderRight: BORDER,
+        padding: "28px 24px", overflowY: "auto",
+      }}>
+        {/* Month header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#121216" }}>
+            {MONTH_NAMES[calMonth]} {calYear}
+          </span>
+          <div style={{ display: "flex", gap: 4 }}>
+            {(["‹","›"] as const).map((arrow, idx) => (
+              <button
+                key={arrow}
+                onClick={idx === 0 ? prevMonth : nextMonth}
+                style={{
+                  width: 28, height: 28, border: BORDER, borderRadius: 6,
+                  background: "#fff", cursor: "pointer",
+                  fontSize: 14, color: "#6B7280",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "var(--font-inter)",
+                }}
+              >{arrow}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* DOW headers */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
+            <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 500, color: "#8E8E97", paddingBottom: 6 }}>{d}</div>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", rowGap: 2 }}>
+          {calCells.map((day, i) => {
+            const isToday  = isThisMonth && day === CAL_TODAY_DAY;
+            const hasEvent = day !== null && eventDays.has(day);
+            return (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", height: 38 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: isToday ? "#3E4FD3" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{
+                    fontSize: 13,
+                    color: isToday ? "#fff" : day ? "#121216" : "transparent",
+                    fontWeight: isToday ? 700 : 400,
+                  }}>
+                    {day ?? ""}
+                  </span>
+                </div>
+                {hasEvent && (
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#3E4FD3", marginTop: 1 }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Events column (70%) ── */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ padding: "28px 32px 16px", borderBottom: BORDER, flexShrink: 0 }}>
+          <h2 style={{ margin: "0 0 2px", fontSize: 18, fontWeight: 700, color: "#121216" }}>
+            Events in {MONTH_NAMES[calMonth]} {calYear}
+          </h2>
+          <p style={{ margin: 0, fontSize: 13, color: "#8E8E97" }}>
+            {monthEvents.length} event{monthEvents.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+
+        {/* Scrollable list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 32px 32px" }}>
+          {groups.length === 0 ? (
+            <div style={{ paddingTop: 48, textAlign: "center", color: "#ccc", fontSize: 13 }}>
+              No events this month
+            </div>
+          ) : (
+            groups.map(group => (
+              <div key={group.dateLabel}>
+                {/* Date header */}
+                <p style={{
+                  margin: "24px 0 10px",
+                  fontSize: 12, fontWeight: 600, color: "#8E8E97",
+                  letterSpacing: "0.01em",
+                }}>
+                  {group.dateLabel}
+                </p>
+
+                {/* Event cards */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {group.events.map(evt => (
+                    <div
+                      key={evt.id}
+                      style={{
+                        display: "flex", alignItems: "flex-start",
+                        paddingLeft: 14, paddingTop: 12, paddingBottom: 12, paddingRight: 14,
+                        background: "#fff",
+                        border: BORDER,
+                        borderLeft: "3px solid #3E4FD3",
+                        borderRadius: 8,
+                        position: "relative",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Title */}
+                        <p style={{ margin: "0 0 5px", fontSize: 14, fontWeight: 600, color: "#121216" }}>
+                          {evt.title}
+                        </p>
+                        {/* Time */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ color: "#3E4FD3", flexShrink: 0 }}>
+                            <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/>
+                            <path d="M8 5v3.5l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: "#3E4FD3" }}>{evt.timeFull}</span>
+                        </div>
+                        {/* Description */}
+                        <p style={{
+                          margin: 0, fontSize: 12, color: "#6B7280", lineHeight: 1.55,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical" as React.CSSProperties["WebkitBoxOrient"],
+                          overflow: "hidden",
+                        }}>
+                          {evt.description}
+                        </p>
+                      </div>
+
+                      {/* Three-dot menu */}
+                      <div style={{ position: "relative", flexShrink: 0, marginLeft: 12 }}>
+                        <button
+                          onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === evt.id ? null : evt.id); }}
+                          style={{
+                            width: 28, height: 28, border: "none", background: "transparent",
+                            cursor: "pointer", borderRadius: 6, display: "flex",
+                            alignItems: "center", justifyContent: "center", color: "#8E8E97",
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                            <circle cx="8" cy="3" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="13" r="1.4"/>
+                          </svg>
+                        </button>
+
+                        {openMenu === evt.id && (
+                          <>
+                            <div
+                              style={{ position: "fixed", inset: 0, zIndex: 49 }}
+                              onClick={() => setOpenMenu(null)}
+                            />
+                            <div style={{
+                              position: "absolute", top: "calc(100% + 4px)", right: 0,
+                              background: "#fff", border: BORDER, borderRadius: 8,
+                              boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                              zIndex: 50, minWidth: 148, overflow: "hidden",
+                            }}>
+                              <button
+                                onClick={() => setOpenMenu(null)}
+                                style={{
+                                  display: "block", width: "100%", textAlign: "left",
+                                  padding: "10px 14px", background: "none", border: "none",
+                                  fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)",
+                                  cursor: "pointer",
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F8")}
+                                onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                              >
+                                Edit Event
+                              </button>
+                              <div style={{ height: 1, background: "#F0F0F5" }} />
+                              <button
+                                onClick={() => setOpenMenu(null)}
+                                style={{
+                                  display: "block", width: "100%", textAlign: "left",
+                                  padding: "10px 14px", background: "none", border: "none",
+                                  fontSize: 13, color: "#EF4444", fontFamily: "var(--font-inter)",
+                                  cursor: "pointer",
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = "#FFF5F5")}
+                                onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                              >
+                                Delete Event
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Resources page ───────────────────────────────────────────────────────────
 
 const RESOURCE_CATEGORIES: ResourceCategory[] = [
@@ -5360,8 +5604,9 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
       {page === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
       {page === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
       {page === 6 && <MessagesPage />}
+      {page === 7 && <EventsPage />}
       {page === 8 && <ResourcesPage />}
-      {page !== 1 && page !== 2 && page !== 3 && page !== 4 && page !== 6 && page !== 8 && (
+      {page !== 1 && page !== 2 && page !== 3 && page !== 4 && page !== 6 && page !== 7 && page !== 8 && (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
         </div>
