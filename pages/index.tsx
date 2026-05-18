@@ -4492,46 +4492,49 @@ function ScriptLibraryPage() {
                   borderLeft: `3px solid ${isSelected ? "#3E4FD3" : "transparent"}`,
                   background: isSelected ? hexAlpha("#3E4FD3", 0.05) : "#fff",
                   cursor: "pointer",
-                  display: "flex", flexDirection: "column", gap: 6,
+                  display: "flex", flexDirection: "row", gap: 12, alignItems: "flex-start",
                   transition: `background ${MS.dFast} ${MS.eOut}`,
                 }}
               >
-                {/* Top row: category badge + toggle */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                {/* Left: badge + title + preview */}
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                   <span style={{
+                    display: "inline-block", alignSelf: "flex-start",
                     fontSize: 10, fontWeight: 600, color: catColor,
                     background: hexAlpha(catColor, 0.1),
                     borderRadius: 5, padding: "2px 7px",
                     letterSpacing: "0.02em", whiteSpace: "nowrap",
                   }}>{script.category}</span>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0 }}>
-                    <ScriptToggle on={isPublic} onChange={v => togglePublic(script.id, v)} />
-                    <span style={{ fontSize: 9, color: isPublic ? "#22C55E" : "#9CA3AF", fontWeight: 500 }}>
-                      {isPublic ? "Public" : "Hidden"}
-                    </span>
-                    <span style={{ fontSize: 9, color: "#9CA3AF" }}>Pre-loaded</span>
-                  </div>
+
+                  {/* Title */}
+                  <p style={{
+                    margin: 0, fontSize: 13, fontWeight: 600,
+                    color: isSelected ? "#3E4FD3" : "#121216",
+                    lineHeight: 1.35,
+                  }}>
+                    {script.title}
+                  </p>
+
+                  {/* Preview — 2-line clamp */}
+                  <p style={{
+                    margin: 0, fontSize: 11, color: "#6B7280", lineHeight: 1.5,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical" as React.CSSProperties["WebkitBoxOrient"],
+                    overflow: "hidden",
+                  }}>
+                    {previewText(script.text)}
+                  </p>
                 </div>
 
-                {/* Title */}
-                <p style={{
-                  margin: 0, fontSize: 13, fontWeight: 600,
-                  color: isSelected ? "#3E4FD3" : "#121216",
-                  lineHeight: 1.35,
-                }}>
-                  {script.title}
-                </p>
-
-                {/* Preview — 2-line clamp */}
-                <p style={{
-                  margin: 0, fontSize: 11, color: "#6B7280", lineHeight: 1.5,
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical" as React.CSSProperties["WebkitBoxOrient"],
-                  overflow: "hidden",
-                }}>
-                  {previewText(script.text)}
-                </p>
+                {/* Right: toggle */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0 }}>
+                  <ScriptToggle on={isPublic} onChange={v => togglePublic(script.id, v)} />
+                  <span style={{ fontSize: 9, color: isPublic ? "#22C55E" : "#9CA3AF", fontWeight: 500 }}>
+                    {isPublic ? "Public" : "Hidden"}
+                  </span>
+                  <span style={{ fontSize: 9, color: "#9CA3AF" }}>Pre-loaded</span>
+                </div>
               </div>
             );
           })}
