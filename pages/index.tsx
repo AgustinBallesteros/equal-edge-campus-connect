@@ -5037,11 +5037,169 @@ function NewEventModal({ show, onClose }: { show: boolean; onClose: () => void }
 
 const DOW_FULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
+// Parse "H:MM AM – H:MM PM" → { start, end }
+function parseTimeFull(timeFull: string): { start: string; end: string } {
+  if (timeFull.includes("–")) {
+    const [s, e] = timeFull.split(" – ");
+    return { start: s.trim(), end: e.trim() };
+  }
+  // "by 5:00 PM" style — put the time part as start
+  const match = timeFull.match(/(\d+:\d+ [AP]M)/);
+  return { start: match ? match[1] : timeFull, end: "" };
+}
+
+type CalEventForModal = { id: number; title: string; date: string; timeFull: string; description: string };
+
+function EditEventModal({ event: evt, show, onClose }: { event: CalEventForModal | null; show: boolean; onClose: () => void }) {
+  const [mounted,   setMounted]   = useState(show);
+  const [vis,       setVis]       = useState(show);
+  const [evtTitle,  setEvtTitle]  = useState("");
+  const [evtDate,   setEvtDate]   = useState("");
+  const [startTime, setStartTime] = useState("9:00 AM");
+  const [endTime,   setEndTime]   = useState("10:00 AM");
+  const [notes,     setNotes]     = useState("");
+
+  useEffect(() => {
+    if (show && evt) {
+      setMounted(true);
+      setEvtTitle(evt.title);
+      setEvtDate(evt.date);
+      const { start, end } = parseTimeFull(evt.timeFull);
+      setStartTime(start || "9:00 AM");
+      setEndTime(end || "10:00 AM");
+      setNotes(evt.description);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 220);
+      return () => clearTimeout(t);
+    }
+  }, [show, evt]);
+
+  if (!mounted) return null;
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", height: 40, paddingInline: 12, boxSizing: "border-box",
+    borderRadius: 8, border: "1.5px solid #E8E8EC",
+    fontSize: 14, color: "#121216", fontFamily: "var(--font-inter)",
+    outline: "none", background: "#fff",
+  };
+
+  function fmtDateInput(iso: string) {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", opacity: vis ? 1 : 0, transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)", transition: "opacity 220ms ease, transform 220ms ease", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "20px 24px 16px" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#121216" }}>Edit Event</h2>
+        </div>
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 18 }}>
+          {/* Event Title */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Event Title</label>
+            <input type="text" value={evtTitle} onChange={e => setEvtTitle(e.target.value)} style={inputStyle} />
+          </div>
+
+          {/* Date + Start Time + End Time */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Date</label>
+              <input type="date" value={evtDate} onChange={e => setEvtDate(e.target.value)} style={{ ...inputStyle, color: evtDate ? "#121216" : "#9CA3AF", paddingRight: 8 }} />
+              {evtDate && <p style={{ margin: "4px 0 0", fontSize: 11, color: "#8E8E97" }}>{fmtDateInput(evtDate)}</p>}
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Start Time</label>
+              <div style={{ position: "relative" }}>
+                <select value={startTime} onChange={e => setStartTime(e.target.value)} style={{ ...inputStyle, appearance: "none", paddingRight: 28, cursor: "pointer" }}>
+                  {EVENT_TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <svg style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8E8E97" }} width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>End Time</label>
+              <div style={{ position: "relative" }}>
+                <select value={endTime} onChange={e => setEndTime(e.target.value)} style={{ ...inputStyle, appearance: "none", paddingRight: 28, cursor: "pointer" }}>
+                  {EVENT_TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <svg style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#8E8E97" }} width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={5} style={{ ...inputStyle, height: "auto", padding: "10px 12px", resize: "vertical", lineHeight: 1.65 }} />
+          </div>
+
+          {/* Visibility notice */}
+          <div style={{ padding: "11px 14px", borderRadius: 8, background: hexAlpha("#3E4FD3", 0.06), border: `1px solid ${hexAlpha("#3E4FD3", 0.18)}` }}>
+            <span style={{ fontSize: 13, color: "#3E4FD3" }}>This event will be visible to all activated students in the app</span>
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
+          <button style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: "#3E4FD3", color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteEventModal({ eventTitle, show, onClose }: { eventTitle: string; show: boolean; onClose: () => void }) {
+  const [mounted, setMounted] = useState(show);
+  const [vis,     setVis]     = useState(show);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVis(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", opacity: vis ? 1 : 0, transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)", transition: "opacity 220ms ease, transform 220ms ease" }}>
+        <div style={{ padding: "24px 24px 20px" }}>
+          <h2 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 700, color: "#121216" }}>Delete Event</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "#4A4A55", lineHeight: 1.6 }}>
+            This will permanently delete <strong>"{eventTitle}"</strong>. Students will immediately lose access to this event.<br />This cannot be undone.
+          </p>
+        </div>
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EventsPage() {
   const [calYear,     setCalYear]     = useState(CAL_TODAY_YEAR);
   const [calMonth,    setCalMonth]    = useState(CAL_TODAY_MONTH);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [openMenu,    setOpenMenu]    = useState<number | null>(null);
+  const [editEvt,     setEditEvt]     = useState<CalEventForModal | null>(null);
+  const [deleteEvt,   setDeleteEvt]   = useState<CalEventForModal | null>(null);
 
   function prevMonth() {
     setSelectedDay(null);
@@ -5083,6 +5241,7 @@ function EventsPage() {
     : `Events in ${MONTH_NAMES[calMonth]} ${calYear}`;
 
   return (
+    <>
     <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
 
       {/* ── Calendar column (30%) ── */}
@@ -5265,7 +5424,7 @@ function EventsPage() {
                               zIndex: 50, minWidth: 148, overflow: "hidden",
                             }}>
                               <button
-                                onClick={() => setOpenMenu(null)}
+                                onClick={() => { setEditEvt(evt); setOpenMenu(null); }}
                                 style={{
                                   display: "block", width: "100%", textAlign: "left",
                                   padding: "10px 14px", background: "none", border: "none",
@@ -5279,7 +5438,7 @@ function EventsPage() {
                               </button>
                               <div style={{ height: 1, background: "#F0F0F5" }} />
                               <button
-                                onClick={() => setOpenMenu(null)}
+                                onClick={() => { setDeleteEvt(evt); setOpenMenu(null); }}
                                 style={{
                                   display: "block", width: "100%", textAlign: "left",
                                   padding: "10px 14px", background: "none", border: "none",
@@ -5304,6 +5463,18 @@ function EventsPage() {
         </div>
       </div>
     </div>
+
+    <EditEventModal
+      event={editEvt}
+      show={editEvt !== null}
+      onClose={() => setEditEvt(null)}
+    />
+    <DeleteEventModal
+      eventTitle={deleteEvt?.title ?? ""}
+      show={deleteEvt !== null}
+      onClose={() => setDeleteEvt(null)}
+    />
+    </>
   );
 }
 
