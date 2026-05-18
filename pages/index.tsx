@@ -2192,7 +2192,7 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
       <div style={{
         flex: 1, overflowY: "auto",
         opacity: vis ? 1 : 0,
-        transform: vis ? "translateX(0)" : slideFrom === "right" ? "translateX(16px)" : "translateX(-16px)",
+        transform: vis ? "none" : slideFrom === "right" ? "translateX(16px)" : "translateX(-16px)",
         transition: "opacity 160ms ease, transform 160ms ease",
       }}>
         {contentStep === 0 && (
@@ -3425,7 +3425,7 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
 
   if (displayId !== null) {
     return (
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", opacity: pageVis ? 1 : 0, transform: pageVis ? "translateX(0)" : slideDir === "forward" ? "translateX(18px)" : "translateX(-18px)", transition: "opacity 160ms ease, transform 160ms ease" }}>
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", opacity: pageVis ? 1 : 0, transform: pageVis ? "none" : slideDir === "forward" ? "translateX(18px)" : "translateX(-18px)", transition: "opacity 160ms ease, transform 160ms ease" }}>
         <LessonDetailPage
           lessonId={displayId}
           onAssign={() => { const l = LESSONS.find(x => x.id === displayId); if (l) onAssignLesson(l); }}
@@ -3462,7 +3462,7 @@ function LessonsPage({ activeLessonId, setActiveLessonId, onAssignLesson }: {
   };
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", opacity: pageVis ? 1 : 0, transform: pageVis ? "translateX(0)" : slideDir === "forward" ? "translateX(18px)" : "translateX(-18px)", transition: "opacity 160ms ease, transform 160ms ease" }}>
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", opacity: pageVis ? 1 : 0, transform: pageVis ? "none" : slideDir === "forward" ? "translateX(18px)" : "translateX(-18px)", transition: "opacity 160ms ease, transform 160ms ease" }}>
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
 
       {/* Category filter bar */}
@@ -6005,7 +6005,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
       <div style={{
         flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
         opacity:    vis ? 1 : 0,
-        transform:  vis ? "translateX(0)" : slideDir === "right" ? "translateX(18px)" : "translateX(-18px)",
+        transform:  vis ? "none" : slideDir === "right" ? "translateX(18px)" : "translateX(-18px)",
         transition: "opacity 160ms ease, transform 160ms ease",
       }}>
         {displayPage === 1 && (
