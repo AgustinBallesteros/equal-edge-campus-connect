@@ -5962,24 +5962,46 @@ function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => voi
 
 // ─── Content (page router) ────────────────────────────────────────────────────
 function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void }) {
+  const [displayPage, setDisplayPage] = useState<NavId>(page);
+  const [vis,         setVis]         = useState(true);
+  const [slideDir,    setSlideDir]    = useState<"left" | "right">("right");
+
+  useEffect(() => {
+    if (page === displayPage) return;
+    setSlideDir(page > displayPage ? "right" : "left");
+    setVis(false);
+    const t = setTimeout(() => {
+      setDisplayPage(page);
+      requestAnimationFrame(() => setVis(true));
+    }, 160);
+    return () => clearTimeout(t);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff" }}>
-      {page === 1 && (
-        <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-          <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} />
-        </div>
-      )}
-      {page === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
-      {page === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
-      {page === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
-      {page === 6 && <MessagesPage />}
-      {page === 7 && <EventsPage />}
-      {page === 8 && <ResourcesPage />}
-      {page !== 1 && page !== 2 && page !== 3 && page !== 4 && page !== 6 && page !== 7 && page !== 8 && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
-        </div>
-      )}
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff", overflow: "hidden" }}>
+      <div style={{
+        flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
+        opacity:    vis ? 1 : 0,
+        transform:  vis ? "translateX(0)" : slideDir === "right" ? "translateX(18px)" : "translateX(-18px)",
+        transition: "opacity 160ms ease, transform 160ms ease",
+      }}>
+        {displayPage === 1 && (
+          <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+            <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} />
+          </div>
+        )}
+        {displayPage === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
+        {displayPage === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
+        {displayPage === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
+        {displayPage === 6 && <MessagesPage />}
+        {displayPage === 7 && <EventsPage />}
+        {displayPage === 8 && <ResourcesPage />}
+        {displayPage !== 1 && displayPage !== 2 && displayPage !== 3 && displayPage !== 4 && displayPage !== 6 && displayPage !== 7 && displayPage !== 8 && (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
