@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, SCRIPT_CATEGORY_COLOR, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, RESOURCES, RESOURCE_CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType, type ScriptCategory } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, SCRIPT_CATEGORY_COLOR, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, ACTIVITIES, RESOURCES, RESOURCE_CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType, type ScriptCategory } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -511,6 +511,325 @@ function RemoveStudentModal({ studentName, isBulk, show, onClose }: { studentNam
   );
 }
 
+// ─── Student profile helpers ──────────────────────────────────────────────────
+
+function getStudentLessonStatus(alumniId: number, lessonId: number): "Completed" | "In Progress" | "Not Started" {
+  const hash = (alumniId * 13 + lessonId * 7) % 10;
+  return hash < 4 ? "Completed" : hash < 7 ? "In Progress" : "Not Started";
+}
+
+function getStudentActivityStatus(alumniId: number, activityId: number): "Completed" | "Pending" {
+  const student = ALUMNI.find(a => a.id === alumniId)!;
+  const completedCount = MOCK_COMPLETED_ACTIVITIES[alumniId] ?? 0;
+  const sortedIds = [...student.assignedActivityIds].sort((a, b) => a - b);
+  return sortedIds.indexOf(activityId) < completedCount ? "Completed" : "Pending";
+}
+
+// ─── Student Profile Page ─────────────────────────────────────────────────────
+
+function StudentProfilePage({ studentId, onBack, onOpenStudent }: { studentId: number; onBack: () => void; onOpenStudent: (id: number) => void }) {
+  const student = ALUMNI.find(a => a.id === studentId)!;
+  const staff   = STAFF.find(s => s.id === student.staffMemberId);
+
+  const trendUp    = student.trend > 0;
+  const trendDown  = student.trend < 0;
+  const trendColor = trendUp ? "#22A062" : trendDown ? "#C72727" : "#8E8E97";
+  const trendArrow = trendUp ? "↑" : trendDown ? "↓" : "→";
+
+  const pill = scorePill(student.engagementScore);
+
+  // Lessons
+  const assignedLessons = LESSONS.filter(l => student.assignedLessonIds.includes(l.id));
+  const completedLessons = assignedLessons.filter(l => getStudentLessonStatus(student.id, l.id) === "Completed");
+  const lessonPct = assignedLessons.length > 0 ? Math.round(completedLessons.length / assignedLessons.length * 100) : 0;
+
+  // Activities
+  const assignedActivities = ACTIVITIES.filter(a => student.assignedActivityIds.includes(a.id));
+  const completedActivities = assignedActivities.filter(a => getStudentActivityStatus(student.id, a.id) === "Completed");
+  const activityPct = assignedActivities.length > 0 ? Math.round(completedActivities.length / assignedActivities.length * 100) : 0;
+
+  // Messages
+  const thread = MESSAGE_THREADS.find(t => t.studentId === student.id) ?? null;
+  const threadCount = MESSAGE_THREADS.filter(t => t.studentId === student.id).length;
+
+  // Last 3 messages
+  const lastMsgs = thread ? thread.messages.slice(-3) : [];
+
+  const sectionCard: React.CSSProperties = {
+    border: BORDER, borderRadius: 12, background: "#fff", padding: 20,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12, color: "#8E8E97", fontWeight: 500,
+    textTransform: "uppercase", letterSpacing: "0.05em",
+    marginBottom: 4,
+  };
+
+  const valueStyle: React.CSSProperties = {
+    fontSize: 22, fontWeight: 700, color: "#121216", lineHeight: 1.2,
+  };
+
+  function CountBadge({ n }: { n: number }) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 18, height: 18, borderRadius: "50%",
+        background: "#EDEEFD", color: "#3E4FD3",
+        fontSize: 11, fontWeight: 700, lineHeight: 1,
+      }}>
+        {n}
+      </span>
+    );
+  }
+
+  function ProgressBar({ pct }: { pct: number }) {
+    return (
+      <div style={{ height: 6, borderRadius: 3, background: "#F0F0F5", marginBottom: 14, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: "#22A062", borderRadius: 3, transition: "width 0.3s ease" }} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+
+        {/* ── Section 1: Profile header ── */}
+        <div style={{ ...sectionCard, marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+          {/* Left */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: "50%", flexShrink: 0,
+              background: avatarColor(student.id),
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ fontSize: 18, color: "#fff", fontWeight: 700 }}>{avatarInitials(student.name)}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 20, fontWeight: 700, color: "#121216", lineHeight: 1.2 }}>{student.name}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <StatusBadge status={student.status} />
+              </div>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>{staff?.name ?? "—"}</span>
+            </div>
+          </div>
+          {/* Right */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>Engagement</span>
+              <span style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                minWidth: 48, height: 28, borderRadius: 7, paddingInline: 12,
+                background: pill.bg, color: pill.text,
+                fontSize: 15, fontWeight: 700,
+              }}>
+                {student.engagementScore > 0 ? student.engagementScore : "—"}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>Trend</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: trendColor }}>
+                {trendArrow} {student.trend > 0 ? `+${student.trend}` : student.trend === 0 ? "—" : student.trend}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>Streak</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#121216" }}>
+                {student.streak > 0 ? `🔥 ${student.streak}d` : "—"}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>Last active</span>
+              <span style={{ fontSize: 13, color: "#121216" }}>{fmtDate(student.dateLastActive)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section 2: 4 stat cards ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
+          {/* Engagement Score */}
+          <div style={{ ...sectionCard, padding: "16px 20px" }}>
+            <p style={labelStyle}>Engagement Score</p>
+            <span style={{ ...valueStyle, color: pill.text }}>{student.engagementScore > 0 ? student.engagementScore : "—"}</span>
+          </div>
+          {/* Weekly Trend */}
+          <div style={{ ...sectionCard, padding: "16px 20px" }}>
+            <p style={labelStyle}>Weekly Trend</p>
+            <span style={{ ...valueStyle, color: trendColor }}>
+              {student.trend > 0 ? `+${student.trend} pts ${trendArrow}` : student.trend < 0 ? `${student.trend} pts ${trendArrow}` : `— pts ${trendArrow}`}
+            </span>
+          </div>
+          {/* Current Streak */}
+          <div style={{ ...sectionCard, padding: "16px 20px" }}>
+            <p style={labelStyle}>Current Streak</p>
+            <span style={valueStyle}>
+              {student.streak > 0 ? `🔥 ${student.streak} days` : "— No streak"}
+            </span>
+          </div>
+          {/* Messages */}
+          <div style={{ ...sectionCard, padding: "16px 20px" }}>
+            <p style={labelStyle}>Messages</p>
+            <span style={valueStyle}>{threadCount}</span>
+            <p style={{ margin: 0, fontSize: 12, color: "#8E8E97" }}>messages</p>
+          </div>
+        </div>
+
+        {/* ── Section 3: Lessons + Activities ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 16, marginBottom: 20 }}>
+
+          {/* Lessons card */}
+          <div style={sectionCard}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#121216" }}>Assigned Lessons</span>
+                <CountBadge n={assignedLessons.length} />
+              </div>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>{completedLessons.length}/{assignedLessons.length} completed</span>
+            </div>
+            <ProgressBar pct={lessonPct} />
+            <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 0 }}>
+              {assignedLessons.length === 0 && (
+                <p style={{ margin: 0, fontSize: 13, color: "#C5C5CC", textAlign: "center", padding: "20px 0" }}>No lessons assigned</p>
+              )}
+              {assignedLessons.map((lesson, i) => {
+                const color = CATEGORY_COLOR[lesson.category];
+                const status = getStudentLessonStatus(student.id, lesson.id);
+                return (
+                  <div key={lesson.id} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "9px 0",
+                    borderBottom: i < assignedLessons.length - 1 ? BORDER : "none",
+                    gap: 10,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                      <span style={{
+                        display: "inline-flex", alignItems: "center",
+                        height: 20, paddingInline: 8, borderRadius: 20, flexShrink: 0,
+                        fontSize: 10, fontWeight: 600,
+                        background: hexAlpha(color, 0.12), color,
+                      }}>
+                        {lesson.category}
+                      </span>
+                      <span style={{ fontSize: 13, color: "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {lesson.title}
+                      </span>
+                    </div>
+                    <AssignStatusBadge status={status} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Activities card */}
+          <div style={sectionCard}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#121216" }}>Activities</span>
+                <CountBadge n={assignedActivities.length} />
+              </div>
+              <span style={{ fontSize: 12, color: "#8E8E97" }}>{completedActivities.length}/{assignedActivities.length} done</span>
+            </div>
+            <ProgressBar pct={activityPct} />
+            <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 0 }}>
+              {assignedActivities.length === 0 && (
+                <p style={{ margin: 0, fontSize: 13, color: "#C5C5CC", textAlign: "center", padding: "20px 0" }}>No activities assigned</p>
+              )}
+              {assignedActivities.map((act, i) => {
+                const done = getStudentActivityStatus(student.id, act.id) === "Completed";
+                return (
+                  <div key={act.id} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 0",
+                    borderBottom: i < assignedActivities.length - 1 ? BORDER : "none",
+                  }}>
+                    <span style={{ fontSize: 15, color: done ? "#22A062" : "#C5C5CC", flexShrink: 0, lineHeight: 1 }}>
+                      {done ? "✓" : "○"}
+                    </span>
+                    <span style={{ fontSize: 13, color: "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                      {act.title}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section 4: Messages + Student Info ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 16 }}>
+
+          {/* Messages card */}
+          <div style={sectionCard}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#121216", display: "block", marginBottom: 12 }}>Messages</span>
+            {!thread ? (
+              <p style={{ margin: 0, fontSize: 13, color: "#8E8E97" }}>No messages yet</p>
+            ) : (
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+                  {lastMsgs.map(msg => {
+                    const isStaff = msg.sender === "staff";
+                    return (
+                      <div key={msg.id} style={{
+                        display: "flex",
+                        justifyContent: isStaff ? "flex-end" : "flex-start",
+                      }}>
+                        <div style={{
+                          maxWidth: "72%",
+                          padding: "8px 12px",
+                          borderRadius: isStaff ? "12px 12px 4px 12px" : "4px 12px 12px 12px",
+                          background: isStaff ? "#3E4FD3" : "#fff",
+                          color: isStaff ? "#fff" : "#121216",
+                          fontSize: 13, lineHeight: 1.45,
+                          border: isStaff ? "none" : BORDER,
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                        }}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => onOpenStudent(student.id)}
+                  style={{
+                    background: "none", border: "none", padding: 0,
+                    fontSize: 13, fontWeight: 500, color: "#3E4FD3",
+                    fontFamily: "var(--font-inter)", cursor: "pointer",
+                  }}
+                >
+                  View conversation →
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Student Info card */}
+          <div style={sectionCard}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#121216", display: "block", marginBottom: 12 }}>Student Info</span>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {([
+                ["Student ID", `#${student.id}`],
+                ["Gender",     student.gender],
+                ["Invited",    fmtDate(student.dateInvited)],
+                ["Activated",  fmtDate(student.dateActivated)],
+                ["Last Active",fmtDate(student.dateLastActive)],
+                ["Staff",      staff?.name ?? "—"],
+              ] as [string, string][]).map(([label, val]) => (
+                <div key={label}>
+                  <p style={{ margin: "0 0 2px", fontSize: 11, color: "#8E8E97", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{val}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 function makePageConfigs(
   view: ViewTab,
   setView: (v: ViewTab) => void,
@@ -725,7 +1044,7 @@ const activated = ALUMNI.filter(a => a.status === "Activated").sort((a, b) => b.
 
 const scheduledDateLabel = `${MONTH_NAMES[CAL_TODAY_MONTH].slice(0, 3)} ${CAL_TODAY_DAY}`;
 
-function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void }) {
+function StudentLeaderboard({ onNavigate, onOpenStudent }: { onNavigate: (page: NavId) => void; onOpenStudent: (id: number) => void }) {
   const [tab,        setTab]        = useState<LeaderTab>("All"); // button highlight
   const [rowTab,     setRowTab]     = useState<LeaderTab>("All"); // actual data
   const [rowsVis,    setRowsVis]    = useState(true);
@@ -823,7 +1142,12 @@ function StudentLeaderboard({ onNavigate }: { onNavigate: (page: NavId) => void 
                 <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0, background: avatarColor(a.id), display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>{avatarInitials(a.name)}</span>
                 </div>
-                <span style={{ fontSize: 13, color: "#121216", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
+                <span
+                  onClick={() => onOpenStudent(a.id)}
+                  style={{ fontSize: 13, color: "#3E4FD3", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                >
+                  {a.name}
+                </span>
               </div>
               {/* Score */}
               <div style={{ display: "flex", justifyContent: "center" }}>
@@ -1364,7 +1688,7 @@ function ProgramSnapshot({ toolsVisible }: { toolsVisible: ToolsVisible }) {
 }
 
 // ── Dashboard root ────────────────────────────────────────────────────────────
-function DashboardContent({ view, onNavigate, toolsVisible }: { view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible }) {
+function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent }: { view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; onOpenStudent: (id: number) => void }) {
   // ── "Your Students" section visibility ──
   const tv = toolsVisible;
   const showLeaderboard   = tv.studentLeaderboard;
@@ -1391,7 +1715,7 @@ function DashboardContent({ view, onNavigate, toolsVisible }: { view: ViewTab; o
           <SectionHeader title="Your students" />
           <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
             <FadeSlot show={hasLeftCol} style={{ flex: "0 0 50%", minWidth: 0 }}>
-              <StudentLeaderboard onNavigate={onNavigate} />
+              <StudentLeaderboard onNavigate={onNavigate} onOpenStudent={onOpenStudent} />
             </FadeSlot>
             <FadeSlot show={hasRightCol} style={{ flex: 1, minWidth: 0 }}>
               <Collapse show={showEngagement}><div style={{ paddingBottom: 16 }}><EngagementGraph view={view} /></div></Collapse>
@@ -2282,7 +2606,7 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
   );
 }
 
-function RosterPage() {
+function RosterPage({ onOpenStudent }: { onOpenStudent: (id: number) => void }) {
   const [filter,    setFilter]    = useState<RosterFilter>("All"); // tab highlight
   const [rowFilter, setRowFilter] = useState<RosterFilter>("All"); // actual data
   const [rowsVis,   setRowsVis]   = useState(true);
@@ -2589,7 +2913,11 @@ function RosterPage() {
                 </div>
 
                 {/* Name */}
-                <div style={{ ...cellTxt, fontSize: 13, fontWeight: 500 }}>{a.name}</div>
+                <div style={{ ...cellTxt, fontSize: 13, fontWeight: 500 }}>
+                  <span onClick={() => onOpenStudent(a.id)} style={{ color: "#3E4FD3", cursor: "pointer", fontWeight: 500 }}>
+                    {a.name}
+                  </span>
+                </div>
 
                 {/* Email */}
                 <div style={{ ...cellTxt, color: "#8E8E97" }}>{emailOf(a.name)}</div>
@@ -4072,7 +4400,7 @@ function sortedMsgThreads() {
   });
 }
 
-function MessagesPage() {
+function MessagesPage({ onOpenStudent }: { onOpenStudent: (id: number) => void }) {
   const threads = sortedMsgThreads();
   const [activeId,   setActiveId]   = useState<number>(threads[0].id);
   const [search,     setSearch]     = useState("");
@@ -4222,11 +4550,14 @@ function MessagesPage() {
               </p>
             </div>
           </div>
-          <button style={{
-            background: "none", border: "none", padding: 0,
-            fontSize: 13, fontWeight: 500, color: "#3E4FD3",
-            fontFamily: "var(--font-inter)", cursor: "pointer",
-          }}>
+          <button
+            onClick={() => onOpenStudent(student.id)}
+            style={{
+              background: "none", border: "none", padding: 0,
+              fontSize: 13, fontWeight: 500, color: "#3E4FD3",
+              fontFamily: "var(--font-inter)", cursor: "pointer",
+            }}
+          >
             View Profile →
           </button>
         </div>
@@ -6011,10 +6342,11 @@ function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => voi
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void }) {
-  const [displayPage, setDisplayPage] = useState<NavId>(page);
-  const [vis,         setVis]         = useState(true);
-  const [slideDir,    setSlideDir]    = useState<"left" | "right">("right");
+function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number) => void }) {
+  const [displayPage,    setDisplayPage]    = useState<NavId>(page);
+  const [vis,            setVis]            = useState(true);
+  const [slideDir,       setSlideDir]       = useState<"left" | "right">("right");
+  const [displayStudentId, setDisplayStudentId] = useState<number | null>(null);
 
   useEffect(() => {
     if (page === displayPage) return;
@@ -6027,6 +6359,17 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
     return () => clearTimeout(t);
   }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (activeStudentId === displayStudentId) return;
+    setSlideDir(activeStudentId !== null ? "right" : "left");
+    setVis(false);
+    const t = setTimeout(() => {
+      setDisplayStudentId(activeStudentId);
+      setTimeout(() => setVis(true), 16);
+    }, 160);
+    return () => clearTimeout(t);
+  }, [activeStudentId]); // eslint-disable-line
+
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff", overflow: "hidden" }}>
       <div style={{
@@ -6035,21 +6378,27 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
         transform:  vis ? "none" : slideDir === "right" ? "translateX(18px)" : "translateX(-18px)",
         transition: "opacity 160ms ease, transform 160ms ease",
       }}>
-        {displayPage === 1 && (
-          <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-            <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} />
-          </div>
-        )}
-        {displayPage === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage />)}
-        {displayPage === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
-        {displayPage === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
-        {displayPage === 6 && <MessagesPage />}
-        {displayPage === 7 && <EventsPage />}
-        {displayPage === 8 && <ResourcesPage />}
-        {displayPage !== 1 && displayPage !== 2 && displayPage !== 3 && displayPage !== 4 && displayPage !== 6 && displayPage !== 7 && displayPage !== 8 && (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
-          </div>
+        {displayStudentId !== null ? (
+          <StudentProfilePage studentId={displayStudentId} onBack={() => onOpenStudent(-1)} onOpenStudent={onOpenStudent} />
+        ) : (
+          <>
+            {displayPage === 1 && (
+              <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+                <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} onOpenStudent={onOpenStudent} />
+              </div>
+            )}
+            {displayPage === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage onOpenStudent={onOpenStudent} />)}
+            {displayPage === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
+            {displayPage === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
+            {displayPage === 6 && <MessagesPage onOpenStudent={onOpenStudent} />}
+            {displayPage === 7 && <EventsPage />}
+            {displayPage === 8 && <ResourcesPage />}
+            {displayPage !== 1 && displayPage !== 2 && displayPage !== 3 && displayPage !== 4 && displayPage !== 6 && displayPage !== 7 && displayPage !== 8 && (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -6069,13 +6418,15 @@ export default function Home() {
   const [newEventOpen,     setNewEventOpen]     = useState(false);
   const [activeLessonId,   setActiveLessonId]   = useState<number | null>(null);
   const [assignLessonItem, setAssignLessonItem] = useState<LessonItem | null>(null);
+  const [activeStudentId,  setActiveStudentId]  = useState<number | null>(null);
 
   function handleNavSelect(id: NavId) {
     setActiveNav(id);
     if (id !== 3) setActiveLessonId(null);
+    setActiveStudentId(null);
   }
 
-  const pageConfigs = makePageConfigs(
+  const baseConfigs = makePageConfigs(
     dashView, setDashView, toolsVisible, setToolsVisible,
     () => setAddStudentOpen(true), () => setImportCSVOpen(true),
     () => setNewMessageOpen(true),
@@ -6086,6 +6437,22 @@ export default function Home() {
     () => setNewScriptOpen(true),
     () => setNewEventOpen(true),
   );
+
+  const activeStudent = activeStudentId ? ALUMNI.find(a => a.id === activeStudentId) : null;
+  const pageConfigs = activeStudent
+    ? {
+        ...baseConfigs,
+        [activeNav]: {
+          title: activeStudent.name,
+          description: (
+            <button onClick={() => setActiveStudentId(null)} style={{ background: "none", border: "none", padding: 0, fontSize: 13, color: "#3E4FD3", fontWeight: 400, fontFamily: "var(--font-inter)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, lineHeight: 1 }}>
+              ← Back
+            </button>
+          ),
+          actions: null,
+        }
+      }
+    : baseConfigs;
 
   return (
     <div className={inter.variable} style={{ width: "100vw", height: "100vh", overflow: "hidden", display: "flex", fontFamily: "var(--font-inter)", userSelect: "none", WebkitUserSelect: "none" }}>
@@ -6099,6 +6466,8 @@ export default function Home() {
           onAssignLesson={(l) => setAssignLessonItem(l)}
           onNewScript={() => setNewScriptOpen(true)}
           onNewEvent={() => setNewEventOpen(true)}
+          activeStudentId={activeStudentId}
+          onOpenStudent={(id) => setActiveStudentId(id)}
         />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
