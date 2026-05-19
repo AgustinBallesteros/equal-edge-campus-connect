@@ -632,6 +632,40 @@ export const MOCK_LESSON_WORST = { title: "College to Career Transition",       
 export const MOCK_MESSAGES_SENT     = 47;
 export const MOCK_MESSAGES_RECEIVED = 89;
 
+// ─── Activity Items (assigned activities with tracking data) ──────────────────
+
+export type ActivityAssignedTo =
+  | { type: "all";      count: number }
+  | { type: "staff";    staffName: string; count: number }
+  | { type: "students"; count: number };
+
+export type ActivityRecurrence = "none" | "daily" | "weekly" | "monthly";
+export type ActivityStatus     = "Active" | "Overdue" | "Completed";
+
+export type ActivityItem = {
+  id:             number;
+  title:          string;
+  description:    string;
+  assignedTo:     ActivityAssignedTo;
+  dueDate:        string | null;   // ISO date string or null = ongoing
+  recurrence:     ActivityRecurrence;
+  completedCount: number;
+  totalCount:     number;
+  overdueCount:   number;
+  status:         ActivityStatus;
+};
+
+export const ACTIVITY_ITEMS: ActivityItem[] = [
+  { id: 1, title: "Register for Spring 2027 Courses",     description: "Complete course registration for the upcoming Spring 2027 semester before the deadline.",                                       assignedTo: { type: "all",      count: 32 },                            dueDate: "2026-05-30", recurrence: "none",    completedCount: 11, totalCount: 32, overdueCount: 0,  status: "Active"   },
+  { id: 2, title: "Email Professor About Accommodation",  description: "Send a formal accommodation request email to each professor for the current semester.",                                         assignedTo: { type: "students", count: 12 },                            dueDate: "2026-05-15", recurrence: "none",    completedCount:  7, totalCount: 12, overdueCount: 5,  status: "Overdue"  },
+  { id: 3, title: "Attend Advising Appointment",          description: "Schedule and attend a meeting with your academic advisor before course registration.",                                          assignedTo: { type: "students", count:  8 },                            dueDate: "2026-05-20", recurrence: "none",    completedCount:  3, totalCount:  8, overdueCount: 0,  status: "Active"   },
+  { id: 4, title: "Complete Mid-Semester Check-In",       description: "Fill out the mid-semester progress check-in form to reflect on your goals and challenges.",                                    assignedTo: { type: "all",      count: 32 },                            dueDate: "2026-05-10", recurrence: "none",    completedCount: 20, totalCount: 32, overdueCount: 12, status: "Overdue"  },
+  { id: 5, title: "Review and Update Academic Plan",      description: "Review your current academic plan and make adjustments aligned with next semester's goals.",                                    assignedTo: { type: "staff",    staffName: "Dr. Okafor", count: 10 },  dueDate: "2026-06-01", recurrence: "none",    completedCount:  4, totalCount: 10, overdueCount: 0,  status: "Active"   },
+  { id: 6, title: "Practice Accommodation Script",        description: "Use the accommodation request script template to practice advocating for your needs with instructors.",                         assignedTo: { type: "students", count:  6 },                            dueDate: null,         recurrence: "weekly",  completedCount:  4, totalCount:  6, overdueCount: 0,  status: "Active"   },
+  { id: 7, title: "Submit Disability Services Renewal",   description: "Renew your Disability Services registration and update any changed accommodation needs for the semester.",                      assignedTo: { type: "students", count:  4 },                            dueDate: "2026-06-15", recurrence: "none",    completedCount:  0, totalCount:  4, overdueCount: 0,  status: "Active"   },
+  { id: 8, title: "Daily Check-In",                       description: "Log a brief daily check-in reflecting on your energy, focus, and overall well-being.",                                        assignedTo: { type: "students", count:  3 },                            dueDate: null,         recurrence: "daily",   completedCount:  2, totalCount:  3, overdueCount: 0,  status: "Active"   },
+];
+
 // ─── Mock "today" reference date ─────────────────────────────────────────────
 // All UI that needs "today" should read from here, not hardcode dates.
 

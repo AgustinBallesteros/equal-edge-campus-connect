@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, SCRIPT_CATEGORY_COLOR, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, ACTIVITIES, RESOURCES, RESOURCE_CATEGORY_COLOR, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType, type ScriptCategory } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, SCRIPT_CATEGORY_COLOR, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, ACTIVITIES, RESOURCES, RESOURCE_CATEGORY_COLOR, ACTIVITY_ITEMS, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType, type ScriptCategory, type ActivityItem, type ActivityAssignedTo, type ActivityRecurrence, type ActivityStatus } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -5571,6 +5571,546 @@ function DeleteEventModal({ eventTitle, show, onClose }: { eventTitle: string; s
   );
 }
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function Toast({ message, show }: { message: string; show: boolean }) {
+  const [mounted, setMounted] = useState(show);
+  const [vis,     setVis]     = useState(show);
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 300);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+  if (!mounted) return null;
+  return (
+    <div style={{
+      position: "fixed", bottom: 28, left: "50%",
+      transform: `translateX(-50%) translateY(${vis ? 0 : 10}px)`,
+      zIndex: 600, background: "#18181B", color: "#fff",
+      padding: "11px 20px", borderRadius: 10, fontSize: 14, fontWeight: 500,
+      boxShadow: "0 4px 20px rgba(0,0,0,0.22)",
+      opacity: vis ? 1 : 0,
+      transition: "opacity 250ms ease, transform 250ms ease",
+      fontFamily: "var(--font-inter)", pointerEvents: "none", whiteSpace: "nowrap",
+    }}>
+      {message}
+    </div>
+  );
+}
+
+// ─── Delete Activity Modal ────────────────────────────────────────────────────
+function DeleteActivityModal({ title, show, onClose }: { title: string; show: boolean; onClose: () => void }) {
+  const [mounted, setMounted] = useState(show);
+  const [vis,     setVis]     = useState(show);
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => setMounted(false), 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+  if (!mounted) return null;
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", opacity: vis ? 1 : 0, transform: vis ? "none" : "scale(0.97) translateY(8px)", transition: "opacity 220ms ease, transform 220ms ease" }}>
+        <div style={{ padding: "24px 24px 20px" }}>
+          <h2 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 700, color: "#121216" }}>Delete Activity</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "#4A4A55", lineHeight: 1.6 }}>
+            This will permanently delete <strong>"{title}"</strong>. Students will immediately lose access to this task.<br />This cannot be undone.
+          </p>
+        </div>
+        <div style={{ height: 1, background: "#E5E5EA" }} />
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Activity Detail Page ─────────────────────────────────────────────────────
+function ActivityDetailPage({ activityId, editMode, onBack }: { activityId: number; editMode: boolean; onBack: () => void }) {
+  const item = ACTIVITY_ITEMS.find(a => a.id === activityId)!;
+  const [isEditing, setIsEditing] = useState(editMode);
+  const [editTitle, setEditTitle] = useState(item.title);
+  const [editDesc,  setEditDesc]  = useState(item.description);
+
+  function formatAssignedTo(at: ActivityAssignedTo): string {
+    if (at.type === "all")      return `All Students (${at.count})`;
+    if (at.type === "staff")    return `${at.staffName}'s Students (${at.count})`;
+    return `${at.count} specific students`;
+  }
+
+  const statusColors: Record<ActivityStatus, { bg: string; text: string }> = {
+    Active:    { bg: "#EBFAF2", text: "#22A062" },
+    Overdue:   { bg: "#FFEFEF", text: "#DC2626" },
+    Completed: { bg: hexAlpha("#3E4FD3", 0.1), text: "#3E4FD3" },
+  };
+  const sc = statusColors[item.status];
+  const pct = item.totalCount > 0 ? Math.round((item.completedCount / item.totalCount) * 100) : 0;
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", boxSizing: "border-box", fontFamily: "var(--font-inter)",
+    border: BORDER, borderRadius: 8, outline: "none", color: "#121216",
+    background: "#fff",
+  };
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+      <div style={{ maxWidth: 780, width: "100%", margin: "0 auto", padding: "28px 24px 48px" }}>
+
+        {/* Back link */}
+        <button onClick={onBack} style={{ background: "none", border: "none", padding: 0, fontSize: 13, color: "#3E4FD3", fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, marginBottom: 20 }}>
+          ← Back to Activities
+        </button>
+
+        {/* Title row */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+          {isEditing ? (
+            <input
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              style={{ ...inputStyle, fontSize: 22, fontWeight: 700, padding: "8px 12px", flex: 1 }}
+            />
+          ) : (
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#121216", flex: 1 }}>{editTitle}</h1>
+          )}
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            {isEditing ? (
+              <>
+                <button onClick={() => setIsEditing(false)} style={{ height: 36, paddingInline: 14, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
+                <button onClick={() => setIsEditing(false)} style={{ height: 36, paddingInline: 14, borderRadius: 8, border: "none", background: "#3E4FD3", color: "#fff", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Save Changes</button>
+              </>
+            ) : (
+              <button onClick={() => setIsEditing(true)} style={{ height: 36, paddingInline: 14, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 1.5l2.5 2.5L4 11.5H1.5V9L9 1.5z"/></svg>
+                Edit
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Status badge */}
+        <span style={{ display: "inline-flex", alignItems: "center", height: 24, paddingInline: 10, borderRadius: 12, background: sc.bg, color: sc.text, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>{item.status}</span>
+
+        {/* Description */}
+        <div style={{ marginBottom: 28 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>Description</p>
+          {isEditing ? (
+            <textarea
+              value={editDesc}
+              onChange={e => setEditDesc(e.target.value)}
+              rows={3}
+              style={{ ...inputStyle, fontSize: 14, padding: "10px 12px", resize: "vertical", lineHeight: 1.6 }}
+            />
+          ) : (
+            <p style={{ margin: 0, fontSize: 14, color: "#4A4A55", lineHeight: 1.7 }}>{editDesc}</p>
+          )}
+        </div>
+
+        {/* Stats grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
+          {[
+            { label: "Assigned To",  value: formatAssignedTo(item.assignedTo) },
+            { label: "Due Date",     value: item.dueDate ? (() => { const d = new Date(item.dueDate + "T00:00"); return `${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`; })() : "Ongoing" },
+            { label: "Recurrence",   value: item.recurrence === "none" ? "No repeat" : item.recurrence === "daily" ? "Every Day" : item.recurrence === "weekly" ? "Every Week" : "Every Month" },
+            { label: "Completion",   value: `${item.completedCount}/${item.totalCount} (${pct}%)` },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ background: "#F8F8FA", border: BORDER, borderRadius: 10, padding: "14px 16px" }}>
+              <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#121216" }}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>Overall Progress</span>
+            <span style={{ fontSize: 13, color: "#8E8E97" }}>{pct}%</span>
+          </div>
+          <div style={{ height: 8, background: "#F0F0F5", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ width: `${pct}%`, height: "100%", background: item.status === "Overdue" ? "#F59E0B" : "#3E4FD3", borderRadius: 8, transition: "width 600ms ease" }} />
+          </div>
+          {item.overdueCount > 0 && (
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#DC2626" }}>
+              {item.overdueCount} student{item.overdueCount !== 1 ? "s" : ""} past due
+            </p>
+          )}
+        </div>
+
+        {/* Assigned students — show ALUMNI sample */}
+        <div>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>Assigned Students</p>
+          <div style={{ border: BORDER, borderRadius: 10, overflow: "hidden" }}>
+            {ALUMNI.slice(0, item.totalCount).map((a, idx) => {
+              const completed = idx < item.completedCount;
+              const isLast = idx === Math.min(item.totalCount, ALUMNI.length) - 1;
+              return (
+                <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: isLast ? "none" : BORDER, background: "#fff" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: hexAlpha("#3E4FD3", 0.1), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#3E4FD3", flexShrink: 0 }}>
+                      {(a.name.split(" ")[0][0] + (a.name.split(" ")[1]?.[0] ?? "")).toUpperCase()}
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: "#121216" }}>{a.name}</span>
+                  </div>
+                  <span style={{
+                    fontSize: 12, fontWeight: 500, paddingInline: 10, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center",
+                    background: completed ? "#EBFAF2" : "#F8F8FA",
+                    color: completed ? "#22A062" : "#8E8E97",
+                  }}>{completed ? "Completed" : "Pending"}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Student Completion View ──────────────────────────────────────────────────
+function StudentCompletionView() {
+  const activated = ALUMNI.filter(a => a.status === "Activated");
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Table header */}
+      <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "1fr 120px 120px 180px 110px", paddingInline: 24, height: 40, borderBottom: BORDER, background: "#FAFAFA", alignItems: "center" }}>
+        {["Student", "Assigned", "Completed", "Progress", "Status"].map(label => (
+          <span key={label} style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+        ))}
+      </div>
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {activated.map((a, idx) => {
+          const assigned   = a.assignedActivityIds.length;
+          const completed  = Math.min(assigned, a.assignedActivityIds.slice(0, Math.round(assigned * 0.6)).length);
+          const pct        = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
+          const isLast     = idx === activated.length - 1;
+          const statusLabel = pct === 100 ? "Completed" : pct === 0 ? "Not Started" : "In Progress";
+          const statusColor = pct === 100 ? "#22A062" : pct === 0 ? "#8E8E97" : "#C28F11";
+          const statusBg    = pct === 100 ? "#EBFAF2" : pct === 0 ? "#F8F8FA" : "#FEF9E6";
+          return (
+            <div key={a.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 180px 110px", paddingInline: 24, minHeight: 56, alignItems: "center", borderBottom: isLast ? "none" : BORDER, background: "#fff" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 30, height: 30, borderRadius: "50%", background: hexAlpha("#3E4FD3", 0.1), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#3E4FD3", flexShrink: 0 }}>
+                  {(a.name.split(" ")[0][0] + (a.name.split(" ")[1]?.[0] ?? "")).toUpperCase()}
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#121216" }}>{a.name}</span>
+              </div>
+              <span style={{ fontSize: 13, color: "#4A4A55" }}>{assigned}</span>
+              <span style={{ fontSize: 13, color: "#4A4A55" }}>{completed}</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ height: 4, background: "#F0F0F5", borderRadius: 4, width: 120, overflow: "hidden" }}>
+                  <div style={{ width: `${pct}%`, height: "100%", background: "#3E4FD3", borderRadius: 4 }} />
+                </div>
+                <span style={{ fontSize: 11, color: "#8E8E97" }}>{pct}%</span>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 500, paddingInline: 10, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center", background: statusBg, color: statusColor }}>{statusLabel}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Activities Page ──────────────────────────────────────────────────────────
+type ActivityView   = "Activities" | "Student Completion";
+type ActivityFilter = "All" | "Active" | "Overdue" | "Completed";
+type ActivityListView = "List" | "Calendar";
+
+const ACT_FILTERS: ActivityFilter[] = ["All", "Active", "Overdue", "Completed"];
+
+const actMenuItemStyle: React.CSSProperties = {
+  width: "100%", padding: "8px 14px", background: "none", border: "none",
+  textAlign: "left", fontSize: 13, color: "#121216", cursor: "pointer",
+  fontFamily: "var(--font-inter)", display: "block",
+};
+
+function ActivitiesPage() {
+  const [view,        setView]        = useState<ActivityView>("Activities");
+  const [filter,      setFilter]      = useState<ActivityFilter>("All");
+  const [rowFilter,   setRowFilter]   = useState<ActivityFilter>("All");
+  const [rowsVis,     setRowsVis]     = useState(true);
+  const [listView,    setListView]    = useState<ActivityListView>("List");
+  const [openMenu,    setOpenMenu]    = useState<number | null>(null);
+  const [deleteTarget,setDeleteTarget]= useState<ActivityItem | null>(null);
+  const [toastMsg,    setToastMsg]    = useState("");
+  const [toastShow,   setToastShow]   = useState(false);
+  const [activeId,    setActiveId]    = useState<number | null>(null);
+  const [displayId,   setDisplayId]   = useState<number | null>(null);
+  const [pageVis,     setPageVis]     = useState(true);
+  const [slideDir,    setSlideDir]    = useState<"forward" | "back">("forward");
+  const [editMode,    setEditMode]    = useState(false);
+
+  // Detail page slide transition
+  useEffect(() => {
+    if (activeId === displayId) return;
+    setSlideDir(activeId !== null ? "forward" : "back");
+    setPageVis(false);
+    const t = setTimeout(() => {
+      setDisplayId(activeId);
+      setTimeout(() => setPageVis(true), 16);
+    }, 160);
+    return () => clearTimeout(t);
+  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (openMenu === null) return;
+    const close = () => setOpenMenu(null);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [openMenu]);
+
+  function switchFilter(next: ActivityFilter) {
+    if (next === filter) return;
+    setFilter(next);
+    setRowsVis(false);
+    setTimeout(() => {
+      setRowFilter(next);
+      setTimeout(() => setRowsVis(true), 16);
+    }, 120);
+  }
+
+  function nudge(item: ActivityItem) {
+    const incomplete = item.totalCount - item.completedCount;
+    setToastMsg(`Nudge sent to ${incomplete} student${incomplete !== 1 ? "s" : ""}`);
+    setToastShow(true);
+    setTimeout(() => setToastShow(false), 3200);
+    setOpenMenu(null);
+  }
+
+  function openDetail(id: number, edit: boolean) {
+    setEditMode(edit);
+    setActiveId(id);
+    setOpenMenu(null);
+  }
+
+  const counts: Record<ActivityFilter, number> = {
+    All:       ACTIVITY_ITEMS.length,
+    Active:    ACTIVITY_ITEMS.filter(a => a.status === "Active").length,
+    Overdue:   ACTIVITY_ITEMS.filter(a => a.status === "Overdue").length,
+    Completed: ACTIVITY_ITEMS.filter(a => a.status === "Completed").length,
+  };
+
+  const filtered = ACTIVITY_ITEMS.filter(a => rowFilter === "All" || a.status === rowFilter);
+
+  function fmtAssigned(at: ActivityAssignedTo): string {
+    if (at.type === "all")   return "All Students";
+    if (at.type === "staff") return `${at.staffName}'s Students`;
+    return `${at.count} students`;
+  }
+
+  function fmtDueDate(item: ActivityItem): React.ReactNode {
+    if (!item.dueDate) return <span style={{ color: "#8E8E97" }}>Ongoing</span>;
+    const d = new Date(item.dueDate + "T00:00");
+    const label = `${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`;
+    return <span style={{ color: item.status === "Overdue" ? "#DC2626" : "#121216", fontWeight: item.status === "Overdue" ? 500 : 400 }}>{label}</span>;
+  }
+
+  function fmtRecurrence(r: ActivityRecurrence): React.ReactNode {
+    if (r === "none") return <span style={{ color: "#8E8E97" }}>— No repeat</span>;
+    const label = r === "daily" ? "Every Day" : r === "weekly" ? "Every Week" : "Every Month";
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#4A4A55" }}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 6a4 4 0 1 0 4-4"/>
+          <path d="M6 1v3l2 1"/>
+        </svg>
+        {label}
+      </span>
+    );
+  }
+
+  const pageStyle: React.CSSProperties = {
+    flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
+    opacity:    pageVis ? 1 : 0,
+    transform:  pageVis ? "none" : slideDir === "forward" ? "translateX(18px)" : "translateX(-18px)",
+    transition: "opacity 160ms ease, transform 160ms ease",
+  };
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+      {displayId !== null ? (
+        <div style={pageStyle}>
+          <ActivityDetailPage activityId={displayId} editMode={editMode} onBack={() => setActiveId(null)} />
+        </div>
+      ) : (
+        <div style={pageStyle}>
+          {/* ── Sub-nav ── */}
+          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", borderBottom: BORDER, height: 52 }}>
+            {/* Activities / Student Completion tabs */}
+            <div style={{ display: "flex", alignItems: "center", height: 32, background: "#F8F8FA", borderRadius: 8, padding: 2, border: BORDER }}>
+              {(["Activities", "Student Completion"] as ActivityView[]).map(v => {
+                const active = view === v;
+                return (
+                  <button key={v} onClick={() => setView(v)} style={{
+                    height: 28, paddingInline: 14, borderRadius: 6, border: "none",
+                    background: active ? "#fff" : "transparent",
+                    color: active ? "#121216" : "#8E8E97",
+                    fontSize: 13, fontWeight: active ? 500 : 400,
+                    fontFamily: "var(--font-inter)", cursor: "pointer",
+                    boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                    transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+                    whiteSpace: "nowrap",
+                  }}>{v}</button>
+                );
+              })}
+            </div>
+            {/* List / Calendar */}
+            <div style={{ display: "flex", alignItems: "center", height: 32, background: "#F8F8FA", borderRadius: 8, padding: 2, border: BORDER }}>
+              {(["List", "Calendar"] as ActivityListView[]).map(lv => {
+                const active = listView === lv;
+                return (
+                  <button key={lv} onClick={() => setListView(lv)} style={{
+                    height: 28, paddingInline: 12, borderRadius: 6, border: "none",
+                    background: active ? "#fff" : "transparent",
+                    color: active ? "#121216" : "#8E8E97",
+                    fontSize: 13, fontWeight: active ? 500 : 400,
+                    fontFamily: "var(--font-inter)", cursor: "pointer",
+                    boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                    transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                  }}>
+                    {lv === "List" ? (
+                      <>
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M1 3h11M1 6.5h11M1 10h11"/></svg>
+                        List
+                      </>
+                    ) : (
+                      <>
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="1.5" width="11" height="10" rx="1.5"/><path d="M1 4.5h11M4.5 1.5v3M8.5 1.5v3"/></svg>
+                        Calendar
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {view === "Activities" ? (
+            <>
+              {/* ── Status filter tabs ── */}
+              <div style={{ flexShrink: 0, display: "flex", alignItems: "center", padding: "10px 24px", borderBottom: BORDER }}>
+                <div style={{ display: "flex", alignItems: "center", height: 32, background: "#F8F8FA", borderRadius: 8, padding: 2, border: BORDER }}>
+                  {ACT_FILTERS.map(f => {
+                    const active = filter === f;
+                    return (
+                      <button key={f} onClick={() => switchFilter(f)} style={{
+                        height: 28, paddingInline: 10, borderRadius: 6, border: "none",
+                        background: active ? "#fff" : "transparent",
+                        color: active ? "#121216" : "#8E8E97",
+                        fontSize: 12, fontWeight: active ? 500 : 400,
+                        fontFamily: "var(--font-inter)", cursor: "pointer",
+                        boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        transition: `background ${MS.dFast} ${MS.eOut}, color ${MS.dFast} ${MS.eOut}`,
+                        display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+                      }}>
+                        {f}
+                        <span style={{
+                          fontSize: 11, fontWeight: 600,
+                          color: active ? "#121216" : "#A0A0AA",
+                          background: active ? "#EDEDED" : "#F0F0F5",
+                          height: 18, minWidth: 18, borderRadius: 10,
+                          display: "inline-flex", alignItems: "center", justifyContent: "center", paddingInline: 5,
+                        }}>{counts[f]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Table ── */}
+              <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                {/* Header */}
+                <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "1fr 160px 130px 150px 170px 80px 48px", paddingInline: 24, height: 40, borderBottom: BORDER, background: "#FAFAFA", alignItems: "center" }}>
+                  {["Activity", "Assigned To", "Due Date", "Recurrence", "Completion", "Overdue", ""].map(label => (
+                    <span key={label} style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+                  ))}
+                </div>
+                {/* Rows */}
+                <div style={{ flex: 1, overflowY: "auto", opacity: rowsVis ? 1 : 0, transition: "opacity 120ms ease" }}>
+                  {filtered.length === 0 ? (
+                    <div style={{ padding: "48px 24px", textAlign: "center", color: "#8E8E97", fontSize: 14 }}>No activities match this filter.</div>
+                  ) : filtered.map((item, idx) => {
+                    const isLast    = idx === filtered.length - 1;
+                    const isOverdue = item.status === "Overdue";
+                    const pct       = item.totalCount > 0 ? (item.completedCount / item.totalCount) * 100 : 0;
+                    return (
+                      <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr 160px 130px 150px 170px 80px 48px", paddingInline: 24, minHeight: 68, alignItems: "center", borderBottom: isLast ? "none" : BORDER, background: isOverdue ? hexAlpha("#DC2626", 0.018) : "#fff" }}>
+                        {/* Activity */}
+                        <div style={{ paddingRight: 16 }}>
+                          <span style={{ fontSize: 14, fontWeight: 500, color: isOverdue ? "#DC2626" : "#121216" }}>{item.title}</span>
+                        </div>
+                        {/* Assigned to */}
+                        <span style={{ fontSize: 13, color: "#4A4A55" }}>{fmtAssigned(item.assignedTo)}</span>
+                        {/* Due Date */}
+                        <span style={{ fontSize: 13 }}>{fmtDueDate(item)}</span>
+                        {/* Recurrence */}
+                        <span style={{ fontSize: 13 }}>{fmtRecurrence(item.recurrence)}</span>
+                        {/* Completion */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                          <div style={{ height: 4, background: "#F0F0F5", borderRadius: 4, width: 120, overflow: "hidden" }}>
+                            <div style={{ width: `${pct}%`, height: "100%", background: isOverdue ? "#F59E0B" : "#3E4FD3", borderRadius: 4 }} />
+                          </div>
+                          <span style={{ fontSize: 12, color: "#8E8E97" }}>{item.completedCount}/{item.totalCount} completed</span>
+                        </div>
+                        {/* Overdue count */}
+                        <div>
+                          {item.overdueCount > 0
+                            ? <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%", background: "#FFEFEF", color: "#DC2626", fontSize: 12, fontWeight: 600 }}>{item.overdueCount}</span>
+                            : <span style={{ color: "#C8C8D0", fontSize: 16 }}>—</span>
+                          }
+                        </div>
+                        {/* ⋮ Menu */}
+                        <div style={{ position: "relative" }}>
+                          <button
+                            onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === item.id ? null : item.id); }}
+                            style={{ width: 32, height: 32, borderRadius: 6, border: "none", background: openMenu === item.id ? "#F0F0F5" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A4A55" }}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="12.5" r="1.5"/></svg>
+                          </button>
+                          {openMenu === item.id && (
+                            <div onClick={e => e.stopPropagation()} style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 50, background: "#fff", border: BORDER, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "4px 0", minWidth: 180 }}>
+                              <button onClick={() => openDetail(item.id, false)} style={actMenuItemStyle}>View Details</button>
+                              <button onClick={() => nudge(item)} style={actMenuItemStyle}>Nudge Incomplete</button>
+                              <button onClick={() => openDetail(item.id, true)} style={actMenuItemStyle}>Edit</button>
+                              <div style={{ height: 1, background: "#E5E5EA", margin: "4px 0" }} />
+                              <button onClick={() => { setDeleteTarget(item); setOpenMenu(null); }} style={{ ...actMenuItemStyle, color: "#DC2626" }}>Delete</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : (
+            <StudentCompletionView />
+          )}
+        </div>
+      )}
+
+      <DeleteActivityModal title={deleteTarget?.title ?? ""} show={deleteTarget !== null} onClose={() => setDeleteTarget(null)} />
+      <Toast message={toastMsg} show={toastShow} />
+    </div>
+  );
+}
+
 function EventsPage() {
   const [calYear,     setCalYear]     = useState(CAL_TODAY_YEAR);
   const [calMonth,    setCalMonth]    = useState(CAL_TODAY_MONTH);
@@ -6405,9 +6945,10 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
             {displayPage === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
             {displayPage === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
             {displayPage === 6 && <MessagesPage onOpenStudent={onOpenStudent} initialStudentId={focusMsgStudentId} />}
+            {displayPage === 5 && <ActivitiesPage />}
             {displayPage === 7 && <EventsPage />}
             {displayPage === 8 && <ResourcesPage />}
-            {displayPage !== 1 && displayPage !== 2 && displayPage !== 3 && displayPage !== 4 && displayPage !== 6 && displayPage !== 7 && displayPage !== 8 && (
+            {displayPage !== 1 && displayPage !== 2 && displayPage !== 3 && displayPage !== 4 && displayPage !== 5 && displayPage !== 6 && displayPage !== 7 && displayPage !== 8 && (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ color: "#ccc", fontSize: 12 }}>Content — coming soon</span>
               </div>
