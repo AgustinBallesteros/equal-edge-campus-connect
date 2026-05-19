@@ -1,6 +1,6 @@
 import { Inter } from "next/font/google";
 import { useState, useEffect, useCallback, useRef, type ReactElement } from "react";
-import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, SCRIPT_CATEGORY_COLOR, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, ACTIVITIES, RESOURCES, RESOURCE_CATEGORY_COLOR, ACTIVITY_ITEMS, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType, type ScriptCategory, type ActivityItem, type ActivityAssignedTo, type ActivityRecurrence, type ActivityStatus } from "../data/mock";
+import { ALUMNI, STAFF, CALENDAR_EVENTS, MOCK_TODAY, ENGAGEMENT_DATA, COMPLETION_DATA, PROGRAM_HEALTH_DELTA, MOCK_LESSONS_COMPLETED, MOCK_ACTIVITIES_OVERDUE, MOCK_ACTIVITIES_RESOLVED_WEEK, SCRIPT_VIEWS, SCRIPTS, SCRIPT_CATEGORY_COLOR, MOCK_LESSON_BEST, MOCK_LESSON_WORST, MOCK_MESSAGES_SENT, MOCK_MESSAGES_RECEIVED, MESSAGE_THREADS, MOCK_COMPLETED_ACTIVITIES, MOCK_CSV_ROWS, MOCK_CSV_ROW_STATUS, MOCK_CSV_STATS, LESSONS, CATEGORY_COLOR, ACTIVITIES, RESOURCES, RESOURCE_CATEGORY_COLOR, ACTIVITY_ITEMS, type GraphViewKey, type Alumni, type CsvRowStatus, type LessonCategory, type ResourceCategory, type ResourceType, type ScriptCategory, type ActivityItem, type ActivitySubTask, type ActivityAssignedTo, type ActivityRecurrence, type ActivityStatus } from "../data/mock";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -5639,142 +5639,233 @@ function DeleteActivityModal({ title, show, onClose }: { title: string; show: bo
 }
 
 // ─── Activity Detail Page ─────────────────────────────────────────────────────
-function ActivityDetailPage({ activityId, editMode, onBack }: { activityId: number; editMode: boolean; onBack: () => void }) {
+function ActivityDetailPage({ activityId, onBack }: { activityId: number; onBack: () => void }) {
   const item = ACTIVITY_ITEMS.find(a => a.id === activityId)!;
-  const [isEditing, setIsEditing] = useState(editMode);
-  const [editTitle, setEditTitle] = useState(item.title);
-  const [editDesc,  setEditDesc]  = useState(item.description);
+  type SCFilter = "All" | "Not Started" | "Overdue" | "Completed";
+  const [scFilter, setScFilter] = useState<SCFilter>("All");
+  const [nudgedIds, setNudgedIds] = useState<Set<number>>(new Set());
+  const [toastMsg,  setToastMsg]  = useState("");
+  const [toastShow, setToastShow] = useState(false);
 
-  function formatAssignedTo(at: ActivityAssignedTo): string {
-    if (at.type === "all")      return `All Students (${at.count})`;
-    if (at.type === "staff")    return `${at.staffName}'s Students (${at.count})`;
-    return `${at.count} specific students`;
+  // Generate student list deterministically from activity data
+  const activatedAlumni = ALUMNI.filter(a => a.status === "Activated");
+  const studentList = activatedAlumni.slice(0, item.totalCount).map((a, idx) => {
+    let status: "Completed" | "Overdue" | "Not Started";
+    if (idx < item.completedCount)                            status = "Completed";
+    else if (idx < item.completedCount + item.overdueCount)   status = "Overdue";
+    else                                                       status = "Not Started";
+    // deterministic completion date for completed students
+    const completedDate = status === "Completed"
+      ? (() => {
+          const base = new Date("2026-05-01T00:00:00");
+          base.setDate(base.getDate() + (idx * 3) % 14);
+          return `${MONTH_NAMES[base.getMonth()].slice(0,3)} ${base.getDate()}, ${base.getFullYear()}`;
+        })()
+      : null;
+    return { ...a, status, completedDate };
+  });
+
+  const scCounts: Record<SCFilter, number> = {
+    "All":         studentList.length,
+    "Not Started": studentList.filter(s => s.status === "Not Started").length,
+    "Overdue":     studentList.filter(s => s.status === "Overdue").length,
+    "Completed":   studentList.filter(s => s.status === "Completed").length,
+  };
+
+  const visibleStudents = scFilter === "All" ? studentList : studentList.filter(s => s.status === scFilter);
+
+  function nudgeStudent(id: number, name: string) {
+    setNudgedIds(prev => new Set(prev).add(id));
+    setToastMsg(`Nudge sent to ${name}`);
+    setToastShow(true);
+    setTimeout(() => setToastShow(false), 3000);
   }
 
-  const statusColors: Record<ActivityStatus, { bg: string; text: string }> = {
-    Active:    { bg: "#EBFAF2", text: "#22A062" },
-    Overdue:   { bg: "#FFEFEF", text: "#DC2626" },
-    Completed: { bg: hexAlpha("#3E4FD3", 0.1), text: "#3E4FD3" },
-  };
-  const sc = statusColors[item.status];
-  const pct = item.totalCount > 0 ? Math.round((item.completedCount / item.totalCount) * 100) : 0;
+  function fmtDetail(item: ActivityItem): { dueDate: string; recurrence: string; assignedTo: string } {
+    const dueDate = item.dueDate
+      ? (() => { const d = new Date(item.dueDate + "T00:00"); return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; })()
+      : "Ongoing";
+    const recurrence =
+      item.recurrence === "none"    ? "Does Not Repeat" :
+      item.recurrence === "daily"   ? "Every Day" :
+      item.recurrence === "weekly"  ? "Every Week" : "Every Month";
+    const assignedTo =
+      item.assignedTo.type === "all"     ? "All Students" :
+      item.assignedTo.type === "staff"   ? `${item.assignedTo.staffName}'s Students` :
+      `${item.assignedTo.count} individual students`;
+    return { dueDate, recurrence, assignedTo };
+  }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%", boxSizing: "border-box", fontFamily: "var(--font-inter)",
-    border: BORDER, borderRadius: 8, outline: "none", color: "#121216",
+  const { dueDate, recurrence, assignedTo } = fmtDetail(item);
+
+  const SC_FILTERS: SCFilter[] = ["All", "Not Started", "Overdue", "Completed"];
+
+  const statusBadgeStyle = (status: "Completed" | "Overdue" | "Not Started"): React.CSSProperties => ({
+    display: "inline-flex", alignItems: "center",
+    height: 26, paddingInline: 12, borderRadius: 20, fontSize: 12, fontWeight: 500,
+    border: `1px solid ${status === "Completed" ? "#86EFAC" : status === "Overdue" ? "#FCA5A5" : "#D1D5DB"}`,
+    color: status === "Completed" ? "#16A34A" : status === "Overdue" ? "#DC2626" : "#6B7280",
     background: "#fff",
+  });
+
+  const fieldLabel: React.CSSProperties = {
+    fontSize: 11, fontWeight: 500, color: "#8E8E97",
+    textTransform: "uppercase", letterSpacing: "0.05em",
+    marginBottom: 4, display: "block",
+  };
+  const fieldValue: React.CSSProperties = {
+    fontSize: 13, fontWeight: 500, color: "#121216",
   };
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowY: "auto" }}>
-      <div style={{ maxWidth: 780, width: "100%", margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.8fr", gap: 16, alignItems: "start", maxWidth: 1100 }}>
 
-        {/* Back link */}
-        <button onClick={onBack} style={{ background: "none", border: "none", padding: 0, fontSize: 13, color: "#3E4FD3", fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, marginBottom: 20 }}>
-          ← Back to Activities
-        </button>
+        {/* ── Left: Activity Details ── */}
+        <div style={{ border: BORDER, borderRadius: 12, background: "#fff", padding: 20, display: "flex", flexDirection: "column", gap: 0 }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#121216", display: "block", marginBottom: 20 }}>Activity Details</span>
 
-        {/* Title row */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
-          {isEditing ? (
-            <input
-              value={editTitle}
-              onChange={e => setEditTitle(e.target.value)}
-              style={{ ...inputStyle, fontSize: 22, fontWeight: 700, padding: "8px 12px", flex: 1 }}
-            />
-          ) : (
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#121216", flex: 1 }}>{editTitle}</h1>
-          )}
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-            {isEditing ? (
-              <>
-                <button onClick={() => setIsEditing(false)} style={{ height: 36, paddingInline: 14, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
-                <button onClick={() => setIsEditing(false)} style={{ height: 36, paddingInline: 14, borderRadius: 8, border: "none", background: "#3E4FD3", color: "#fff", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Save Changes</button>
-              </>
-            ) : (
-              <button onClick={() => setIsEditing(true)} style={{ height: 36, paddingInline: 14, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 1.5l2.5 2.5L4 11.5H1.5V9L9 1.5z"/></svg>
-                Edit
-              </button>
-            )}
+          {/* Notes */}
+          <div style={{ marginBottom: 16 }}>
+            <span style={fieldLabel}>Notes</span>
+            <p style={{ margin: 0, fontSize: 13, color: "#4A4A55", lineHeight: 1.65 }}>{item.description}</p>
+          </div>
+
+          {/* Due Date */}
+          <div style={{ marginBottom: 16 }}>
+            <span style={fieldLabel}>Due Date</span>
+            <span style={fieldValue}>{dueDate}</span>
+          </div>
+
+          {/* Recurrence */}
+          <div style={{ marginBottom: 16 }}>
+            <span style={fieldLabel}>Recurrence</span>
+            <span style={fieldValue}>{recurrence}</span>
+          </div>
+
+          {/* Assigned To */}
+          <div style={{ marginBottom: 16 }}>
+            <span style={fieldLabel}>Assigned To</span>
+            <span style={fieldValue}>{assignedTo}</span>
+          </div>
+
+          {/* Created */}
+          <div style={{ marginBottom: 20 }}>
+            <span style={fieldLabel}>Created</span>
+            <span style={fieldValue}>
+              {(() => { const d = new Date(item.createdDate + "T00:00"); return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; })()}
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: 1, background: "#E5E5EA", marginBottom: 20 }} />
+
+          {/* Sub-tasks */}
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#121216", display: "block", marginBottom: 4 }}>Sub-tasks</span>
+          <span style={{ fontSize: 12, color: "#8E8E97", display: "block", marginBottom: 14 }}>Tracked by students in the app — read only</span>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {item.subTasks.map((st: ActivitySubTask) => (
+              <div key={st.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: BORDER, borderRadius: 8, padding: "10px 14px", background: "#FAFAFA" }}>
+                <span style={{ fontSize: 13, color: "#121216", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 12 }}>{st.title}</span>
+                <span style={{ fontSize: 12, color: "#8E8E97", fontWeight: 500, flexShrink: 0, background: "#F0F0F5", borderRadius: 6, padding: "2px 8px" }}>{st.durationMin} min</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Status badge */}
-        <span style={{ display: "inline-flex", alignItems: "center", height: 24, paddingInline: 10, borderRadius: 12, background: sc.bg, color: sc.text, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>{item.status}</span>
+        {/* ── Right: Student Completion ── */}
+        <div style={{ border: BORDER, borderRadius: 12, background: "#fff", overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px 0" }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: "#121216", display: "block", marginBottom: 14 }}>Student Completion</span>
 
-        {/* Description */}
-        <div style={{ marginBottom: 28 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>Description</p>
-          {isEditing ? (
-            <textarea
-              value={editDesc}
-              onChange={e => setEditDesc(e.target.value)}
-              rows={3}
-              style={{ ...inputStyle, fontSize: 14, padding: "10px 12px", resize: "vertical", lineHeight: 1.6 }}
-            />
-          ) : (
-            <p style={{ margin: 0, fontSize: 14, color: "#4A4A55", lineHeight: 1.7 }}>{editDesc}</p>
-          )}
-        </div>
-
-        {/* Stats grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
-          {[
-            { label: "Assigned To",  value: formatAssignedTo(item.assignedTo) },
-            { label: "Due Date",     value: item.dueDate ? (() => { const d = new Date(item.dueDate + "T00:00"); return `${MONTH_NAMES[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`; })() : "Ongoing" },
-            { label: "Recurrence",   value: item.recurrence === "none" ? "No repeat" : item.recurrence === "daily" ? "Every Day" : item.recurrence === "weekly" ? "Every Week" : "Every Month" },
-            { label: "Completion",   value: `${item.completedCount}/${item.totalCount} (${pct}%)` },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ background: "#F8F8FA", border: BORDER, borderRadius: 10, padding: "14px 16px" }}>
-              <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#121216" }}>{value}</p>
+            {/* Underline tabs */}
+            <div style={{ display: "flex", gap: 0, borderBottom: BORDER }}>
+              {SC_FILTERS.map(f => {
+                const active = scFilter === f;
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setScFilter(f)}
+                    style={{
+                      paddingInline: 14, paddingBottom: 10, paddingTop: 2,
+                      border: "none", background: "none",
+                      fontSize: 13, fontWeight: active ? 600 : 400,
+                      color: active ? "#121216" : "#8E8E97",
+                      cursor: "pointer", fontFamily: "var(--font-inter)",
+                      borderBottom: active ? "2px solid #3E4FD3" : "2px solid transparent",
+                      marginBottom: -1,
+                      transition: `color ${MS.dFast} ${MS.eOut}`,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f} ({scCounts[f]})
+                  </button>
+                );
+              })}
             </div>
-          ))}
-        </div>
-
-        {/* Progress bar */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>Overall Progress</span>
-            <span style={{ fontSize: 13, color: "#8E8E97" }}>{pct}%</span>
           </div>
-          <div style={{ height: 8, background: "#F0F0F5", borderRadius: 8, overflow: "hidden" }}>
-            <div style={{ width: `${pct}%`, height: "100%", background: item.status === "Overdue" ? "#F59E0B" : "#3E4FD3", borderRadius: 8, transition: "width 600ms ease" }} />
-          </div>
-          {item.overdueCount > 0 && (
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#DC2626" }}>
-              {item.overdueCount} student{item.overdueCount !== 1 ? "s" : ""} past due
-            </p>
-          )}
-        </div>
 
-        {/* Assigned students — show ALUMNI sample */}
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>Assigned Students</p>
-          <div style={{ border: BORDER, borderRadius: 10, overflow: "hidden" }}>
-            {ALUMNI.slice(0, item.totalCount).map((a, idx) => {
-              const completed = idx < item.completedCount;
-              const isLast = idx === Math.min(item.totalCount, ALUMNI.length) - 1;
+          {/* Table header */}
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 130px 140px 90px", padding: "0 20px", background: "#FAFAFA", borderBottom: BORDER }}>
+            {["Name", "Status", "Completed Date", "Nudge"].map(h => (
+              <div key={h} style={{ height: 38, display: "flex", alignItems: "center", fontSize: 11, fontWeight: 500, color: "#8E8E97", paddingInline: 4 }}>{h}</div>
+            ))}
+          </div>
+
+          {/* Student rows */}
+          <div>
+            {visibleStudents.length === 0 ? (
+              <div style={{ padding: "32px 20px", textAlign: "center", color: "#C5C5CC", fontSize: 13 }}>No students in this category.</div>
+            ) : visibleStudents.map((s, idx) => {
+              const isLast = idx === visibleStudents.length - 1;
+              const isNudged = nudgedIds.has(s.id);
               return (
-                <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: isLast ? "none" : BORDER, background: "#fff" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: hexAlpha("#3E4FD3", 0.1), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#3E4FD3", flexShrink: 0 }}>
-                      {(a.name.split(" ")[0][0] + (a.name.split(" ")[1]?.[0] ?? "")).toUpperCase()}
+                <div
+                  key={s.id}
+                  style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 130px 140px 90px", padding: "0 20px", alignItems: "center", minHeight: 52, borderBottom: isLast ? "none" : BORDER }}
+                >
+                  {/* Name */}
+                  <div style={{ paddingInline: 4, display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: hexAlpha(avatarColor(s.id), 0.12), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, color: avatarColor(s.id), flexShrink: 0 }}>
+                      {avatarInitials(s.name)}
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "#121216" }}>{a.name}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                   </div>
-                  <span style={{
-                    fontSize: 12, fontWeight: 500, paddingInline: 10, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center",
-                    background: completed ? "#EBFAF2" : "#F8F8FA",
-                    color: completed ? "#22A062" : "#8E8E97",
-                  }}>{completed ? "Completed" : "Pending"}</span>
+                  {/* Status */}
+                  <div style={{ paddingInline: 4 }}>
+                    <span style={statusBadgeStyle(s.status)}>{s.status}</span>
+                  </div>
+                  {/* Completed Date */}
+                  <div style={{ paddingInline: 4, fontSize: 13, color: s.completedDate ? "#121216" : "#C5C5CC" }}>
+                    {s.completedDate ?? "—"}
+                  </div>
+                  {/* Nudge */}
+                  <div style={{ paddingInline: 4 }}>
+                    {s.status === "Completed" ? null : isNudged ? (
+                      <span style={{ fontSize: 12, color: "#22A062", fontWeight: 500 }}>✓ Sent</span>
+                    ) : (
+                      <button
+                        onClick={() => nudgeStudent(s.id, s.name.split(" ")[0])}
+                        style={{
+                          height: 28, paddingInline: 10, borderRadius: 7,
+                          border: "1px solid #FDE68A", background: "#FEF3C7",
+                          color: "#92400E", fontSize: 12, fontWeight: 500,
+                          fontFamily: "var(--font-inter)", cursor: "pointer",
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                        }}
+                      >
+                        <span>🔔</span> Nudge
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
       </div>
+      <Toast message={toastMsg} show={toastShow} />
     </div>
   );
 }
@@ -5892,6 +5983,74 @@ function StudentCompletionView() {
   );
 }
 
+// ─── Activity Detail Actions (TopBar actions for activity detail) ─────────────
+function ActivityDetailActions({ activityId, onDelete }: { activityId: number; onDelete: () => void }) {
+  const item = ACTIVITY_ITEMS.find(a => a.id === activityId)!;
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const [toastMsg,  setToastMsg]  = useState("");
+  const [toastShow, setToastShow] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuOpen]);
+
+  function nudgeAll() {
+    const incomplete = item.totalCount - item.completedCount;
+    setToastMsg(`Nudge sent to ${incomplete} student${incomplete !== 1 ? "s" : ""}`);
+    setToastShow(true);
+    setTimeout(() => setToastShow(false), 3200);
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button
+        onClick={nudgeAll}
+        style={{
+          height: 36, paddingInline: 14, borderRadius: 8,
+          border: "1px solid #FDE68A", background: "#FEF3C7",
+          color: "#92400E", fontSize: 13, fontWeight: 500,
+          fontFamily: "var(--font-inter)", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 6,
+        }}
+      >
+        <span style={{ fontSize: 15 }}>🔔</span>
+        Nudge All Incomplete
+      </button>
+
+      <div style={{ position: "relative" }}>
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={() => setMenuOpen(o => !o)}
+          style={{
+            width: 36, height: 36, borderRadius: 8, border: BORDER,
+            background: menuOpen ? "#F8F8FA" : "#fff",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <svg width="3" height="13" viewBox="0 0 3 13" fill="#8E8E97">
+            <circle cx="1.5" cy="1.5" r="1.5"/><circle cx="1.5" cy="6.5" r="1.5"/><circle cx="1.5" cy="11.5" r="1.5"/>
+          </svg>
+        </button>
+        <PopoverTransition show={menuOpen} style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 50 }}>
+          <div
+            onMouseDown={e => e.stopPropagation()}
+            style={{ background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 160 }}
+          >
+            <button onClick={() => setMenuOpen(false)} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", border: "none", background: "#fff", fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)", cursor: "pointer" }}>Edit Activity</button>
+            <div style={{ height: 1, background: "#E5E5EA" }} />
+            <button onClick={() => { setMenuOpen(false); onDelete(); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", border: "none", background: "#fff", fontSize: 13, color: "#DC2626", fontFamily: "var(--font-inter)", cursor: "pointer" }}>Delete Activity</button>
+          </div>
+        </PopoverTransition>
+      </div>
+
+      <Toast message={toastMsg} show={toastShow} />
+    </div>
+  );
+}
+
 // ─── Activities Page ──────────────────────────────────────────────────────────
 type ActivityView   = "Activities" | "Student Completion";
 type ActivityFilter = "All" | "Active" | "Overdue" | "Completed";
@@ -5919,7 +6078,7 @@ const ACT_HEADERS: { label: string; sortKey: ActivitySortKey | null; center: boo
   { label: "",            sortKey: null,         center: false },
 ];
 
-function ActivitiesPage() {
+function ActivitiesPage({ onOpenActivity }: { onOpenActivity: (id: number) => void }) {
   const [view,        setView]        = useState<ActivityView>("Activities");
   const [filter,      setFilter]      = useState<ActivityFilter>("All");
   const [rowFilter,   setRowFilter]   = useState<ActivityFilter>("All");
@@ -5932,23 +6091,6 @@ function ActivitiesPage() {
   const [hoveredRow,  setHoveredRow]  = useState<number | null>(null);
   const [sortKey,     setSortKey]     = useState<ActivitySortKey>("title");
   const [sortDir,     setSortDir]     = useState<SortDir>("asc");
-  const [activeId,    setActiveId]    = useState<number | null>(null);
-  const [displayId,   setDisplayId]   = useState<number | null>(null);
-  const [pageVis,     setPageVis]     = useState(true);
-  const [slideDir,    setSlideDir]    = useState<"forward" | "back">("forward");
-  const [editMode,    setEditMode]    = useState(false);
-
-  // Detail page slide transition
-  useEffect(() => {
-    if (activeId === displayId) return;
-    setSlideDir(activeId !== null ? "forward" : "back");
-    setPageVis(false);
-    const t = setTimeout(() => {
-      setDisplayId(activeId);
-      setTimeout(() => setPageVis(true), 16);
-    }, 160);
-    return () => clearTimeout(t);
-  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close menu on outside click
   useEffect(() => {
@@ -5976,9 +6118,8 @@ function ActivitiesPage() {
     setOpenMenu(null);
   }
 
-  function openDetail(id: number, edit: boolean) {
-    setEditMode(edit);
-    setActiveId(id);
+  function openDetail(id: number) {
+    onOpenActivity(id);
     setOpenMenu(null);
   }
 
@@ -6030,22 +6171,9 @@ function ActivitiesPage() {
     );
   }
 
-  const pageStyle: React.CSSProperties = {
-    flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
-    opacity:    pageVis ? 1 : 0,
-    transform:  pageVis ? "none" : slideDir === "forward" ? "translateX(18px)" : "translateX(-18px)",
-    transition: "opacity 160ms ease, transform 160ms ease",
-  };
-
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-      {displayId !== null ? (
-        <div style={pageStyle}>
-          <ActivityDetailPage activityId={displayId} editMode={editMode} onBack={() => setActiveId(null)} />
-        </div>
-      ) : (
-        <div style={pageStyle}>
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           {/* ── Sub-nav ── */}
           <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", borderBottom: BORDER, height: 52 }}>
             {/* Activities / Student Completion tabs */}
@@ -6223,9 +6351,9 @@ function ActivitiesPage() {
                               onMouseDown={e => e.stopPropagation()}
                               style={{ background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 180 }}
                             >
-                              <button onClick={() => openDetail(item.id, false)} style={actMenuItemStyle}>View Details</button>
+                              <button onClick={() => openDetail(item.id)} style={actMenuItemStyle}>View Details</button>
                               <button onClick={() => nudge(item)} style={actMenuItemStyle}>Nudge Incomplete</button>
-                              <button onClick={() => openDetail(item.id, true)} style={actMenuItemStyle}>Edit</button>
+                              <button onClick={() => openDetail(item.id)} style={actMenuItemStyle}>Edit</button>
                               <div style={{ height: 1, background: "#E5E5EA" }} />
                               <button onClick={() => { setDeleteTarget(item); setOpenMenu(null); }} style={{ ...actMenuItemStyle, color: "#DC2626" }}>Delete</button>
                             </div>
@@ -6241,7 +6369,6 @@ function ActivitiesPage() {
             <StudentCompletionView />
           )}
         </div>
-      )}
 
       <DeleteActivityModal title={deleteTarget?.title ?? ""} show={deleteTarget !== null} onClose={() => setDeleteTarget(null)} />
       <Toast message={toastMsg} show={toastShow} />
@@ -7023,11 +7150,12 @@ function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => voi
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number | null) => void }) {
-  const [displayPage,    setDisplayPage]    = useState<NavId>(page);
-  const [vis,            setVis]            = useState(true);
-  const [slideDir,       setSlideDir]       = useState<"left" | "right">("right");
-  const [displayStudentId, setDisplayStudentId] = useState<number | null>(null);
+function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent, activeActivityId, onOpenActivity }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number | null) => void; activeActivityId: number | null; onOpenActivity: (id: number | null) => void }) {
+  const [displayPage,       setDisplayPage]       = useState<NavId>(page);
+  const [vis,               setVis]               = useState(true);
+  const [slideDir,          setSlideDir]          = useState<"left" | "right">("right");
+  const [displayStudentId,  setDisplayStudentId]  = useState<number | null>(null);
+  const [displayActivityId, setDisplayActivityId] = useState<number | null>(null);
   const [focusMsgStudentId, setFocusMsgStudentId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -7052,6 +7180,17 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
     return () => clearTimeout(t);
   }, [activeStudentId]); // eslint-disable-line
 
+  useEffect(() => {
+    if (activeActivityId === displayActivityId) return;
+    setSlideDir(activeActivityId !== null ? "right" : "left");
+    setVis(false);
+    const t = setTimeout(() => {
+      setDisplayActivityId(activeActivityId);
+      setTimeout(() => setVis(true), 16);
+    }, 160);
+    return () => clearTimeout(t);
+  }, [activeActivityId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "#fff", overflow: "hidden" }}>
       <div style={{
@@ -7072,6 +7211,8 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
               onNavigate(6);
             }}
           />
+        ) : displayActivityId !== null ? (
+          <ActivityDetailPage activityId={displayActivityId} onBack={() => onOpenActivity(null)} />
         ) : (
           <>
             {displayPage === 1 && (
@@ -7083,7 +7224,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
             {displayPage === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
             {displayPage === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
             {displayPage === 6 && <MessagesPage onOpenStudent={onOpenStudent} initialStudentId={focusMsgStudentId} />}
-            {displayPage === 5 && <ActivitiesPage />}
+            {displayPage === 5 && <ActivitiesPage onOpenActivity={onOpenActivity} />}
             {displayPage === 7 && <EventsPage />}
             {displayPage === 8 && <ResourcesPage />}
             {displayPage !== 1 && displayPage !== 2 && displayPage !== 3 && displayPage !== 4 && displayPage !== 5 && displayPage !== 6 && displayPage !== 7 && displayPage !== 8 && (
@@ -7112,11 +7253,13 @@ export default function Home() {
   const [activeLessonId,   setActiveLessonId]   = useState<number | null>(null);
   const [assignLessonItem, setAssignLessonItem] = useState<LessonItem | null>(null);
   const [activeStudentId,  setActiveStudentId]  = useState<number | null>(null);
+  const [activeActivityId, setActiveActivityId] = useState<number | null>(null);
 
   function handleNavSelect(id: NavId) {
     setActiveNav(id);
     if (id !== 3) setActiveLessonId(null);
     setActiveStudentId(null);
+    setActiveActivityId(null);
   }
 
   const baseConfigs = makePageConfigs(
@@ -7132,6 +7275,7 @@ export default function Home() {
   );
 
   const activeStudent = activeStudentId ? ALUMNI.find(a => a.id === activeStudentId) : null;
+  const activeActivityItem = activeActivityId ? ACTIVITY_ITEMS.find(a => a.id === activeActivityId) : null;
   const pageConfigs = activeStudent
     ? {
         ...baseConfigs,
@@ -7143,6 +7287,19 @@ export default function Home() {
             </button>
           ),
           actions: null,
+        }
+      }
+    : activeActivityItem
+    ? {
+        ...baseConfigs,
+        5: {
+          title: activeActivityItem.title,
+          description: (
+            <button onClick={() => setActiveActivityId(null)} style={{ background: "none", border: "none", padding: 0, fontSize: 13, color: "#3E4FD3", fontWeight: 400, fontFamily: "var(--font-inter)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, lineHeight: 1 }}>
+              ← Activities
+            </button>
+          ),
+          actions: <ActivityDetailActions activityId={activeActivityId!} onDelete={() => setActiveActivityId(null)} />,
         }
       }
     : baseConfigs;
@@ -7161,6 +7318,8 @@ export default function Home() {
           onNewEvent={() => setNewEventOpen(true)}
           activeStudentId={activeStudentId}
           onOpenStudent={(id) => setActiveStudentId(id ?? null)}
+          activeActivityId={activeActivityId}
+          onOpenActivity={(id) => setActiveActivityId(id ?? null)}
         />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
