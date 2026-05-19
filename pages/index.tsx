@@ -5264,7 +5264,7 @@ function NewEventModal({ show, onClose }: { show: boolean; onClose: () => void }
   const [mounted,    setMounted]    = useState(show);
   const [vis,        setVis]        = useState(show);
   const [evtTitle,   setEvtTitle]   = useState("");
-  const [evtDate,    setEvtDate]    = useState("");
+  const [evtDate,    setEvtDate]    = useState<string | null>(null);
   const [startTime,  setStartTime]  = useState("9:00 AM");
   const [endTime,    setEndTime]    = useState("10:00 AM");
   const [notes,      setNotes]      = useState("");
@@ -5278,7 +5278,7 @@ function NewEventModal({ show, onClose }: { show: boolean; onClose: () => void }
       setVis(false);
       const t = setTimeout(() => {
         setMounted(false);
-        setEvtTitle(""); setEvtDate(""); setStartTime("9:00 AM");
+        setEvtTitle(""); setEvtDate(null); setStartTime("9:00 AM");
         setEndTime("10:00 AM"); setNotes("");
       }, 220);
       return () => clearTimeout(t);
@@ -5294,14 +5294,7 @@ function NewEventModal({ show, onClose }: { show: boolean; onClose: () => void }
     outline: "none", background: "#fff",
   };
 
-  // Format date input value (ISO) → "Month DD, YYYY" for display
-  function fmtDateInput(iso: string) {
-    if (!iso) return "";
-    const [y, m, d] = iso.split("-").map(Number);
-    return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
-  }
-
-  const canSave = evtTitle.trim().length > 0 && evtDate.length > 0;
+  const canSave = evtTitle.trim().length > 0 && evtDate !== null;
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}>
@@ -5331,19 +5324,7 @@ function NewEventModal({ show, onClose }: { show: boolean; onClose: () => void }
             {/* Date */}
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Date</label>
-              <div style={{ position: "relative" }}>
-                <input
-                  type="date" value={evtDate} onChange={e => setEvtDate(e.target.value)}
-                  style={{
-                    ...inputStyle,
-                    color: evtDate ? "#121216" : "#9CA3AF",
-                    paddingRight: 8,
-                  }}
-                />
-              </div>
-              {evtDate && (
-                <p style={{ margin: "4px 0 0", fontSize: 11, color: "#8E8E97" }}>{fmtDateInput(evtDate)}</p>
-              )}
+              <DatePickerField value={evtDate} onChange={setEvtDate} />
             </div>
 
             {/* Start Time */}
@@ -5433,7 +5414,7 @@ function EditEventModal({ event: evt, show, onClose }: { event: CalEventForModal
   const [mounted,   setMounted]   = useState(show);
   const [vis,       setVis]       = useState(show);
   const [evtTitle,  setEvtTitle]  = useState("");
-  const [evtDate,   setEvtDate]   = useState("");
+  const [evtDate,   setEvtDate]   = useState<string | null>(null);
   const [startTime, setStartTime] = useState("9:00 AM");
   const [endTime,   setEndTime]   = useState("10:00 AM");
   const [notes,     setNotes]     = useState("");
@@ -5465,12 +5446,6 @@ function EditEventModal({ event: evt, show, onClose }: { event: CalEventForModal
     outline: "none", background: "#fff",
   };
 
-  function fmtDateInput(iso: string) {
-    if (!iso) return "";
-    const [y, m, d] = iso.split("-").map(Number);
-    return `${MONTH_NAMES[m - 1]} ${d}, ${y}`;
-  }
-
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", opacity: vis ? 1 : 0, transform: vis ? "scale(1) translateY(0)" : "scale(0.97) translateY(8px)", transition: "opacity 220ms ease, transform 220ms ease", display: "flex", flexDirection: "column" }}>
@@ -5490,8 +5465,7 @@ function EditEventModal({ event: evt, show, onClose }: { event: CalEventForModal
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Date</label>
-              <input type="date" value={evtDate} onChange={e => setEvtDate(e.target.value)} style={{ ...inputStyle, color: evtDate ? "#121216" : "#9CA3AF", paddingRight: 8 }} />
-              {evtDate && <p style={{ margin: "4px 0 0", fontSize: 11, color: "#8E8E97" }}>{fmtDateInput(evtDate)}</p>}
+              <DatePickerField value={evtDate} onChange={setEvtDate} />
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#121216", marginBottom: 6 }}>Start Time</label>
