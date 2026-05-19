@@ -5780,42 +5780,110 @@ function ActivityDetailPage({ activityId, editMode, onBack }: { activityId: numb
 }
 
 // ─── Student Completion View ──────────────────────────────────────────────────
+type SCsortKey = "name" | "assigned" | "completed" | "progress" | "status";
+
+const SC_COL = "minmax(0,1fr) 110px 120px minmax(0,200px) 120px";
+
+const SC_HEADERS: { label: string; sortKey: SCsortKey | null; center: boolean }[] = [
+  { label: "Student",   sortKey: "name",      center: false },
+  { label: "Assigned",  sortKey: "assigned",  center: true  },
+  { label: "Completed", sortKey: "completed", center: true  },
+  { label: "Progress",  sortKey: "progress",  center: false },
+  { label: "Status",    sortKey: "status",    center: false },
+];
+
 function StudentCompletionView() {
-  const activated = ALUMNI.filter(a => a.status === "Activated");
+  const [sortKey,    setSortKey]    = useState<SCsortKey>("name");
+  const [sortDir,    setSortDir]    = useState<SortDir>("asc");
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [rowsVis,    setRowsVis]    = useState(true);
+
+  const activated = ALUMNI.filter(a => a.status === "Activated").map(a => {
+    const assigned  = a.assignedActivityIds.length;
+    const completed = Math.min(assigned, a.assignedActivityIds.slice(0, Math.round(assigned * 0.6)).length);
+    const pct       = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
+    return { ...a, assigned, completed, pct };
+  }).sort((a, b) => {
+    let cmp = 0;
+    switch (sortKey) {
+      case "name":      cmp = a.name.localeCompare(b.name); break;
+      case "assigned":  cmp = a.assigned  - b.assigned;  break;
+      case "completed": cmp = a.completed - b.completed; break;
+      case "progress":  cmp = a.pct       - b.pct;       break;
+      case "status":    cmp = a.pct       - b.pct;       break;
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* Table header */}
-      <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "1fr 120px 120px 180px 110px", paddingInline: 24, height: 40, borderBottom: BORDER, background: "#FAFAFA", alignItems: "center" }}>
-        {["Student", "Assigned", "Completed", "Progress", "Status"].map(label => (
-          <span key={label} style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      {/* Header */}
+      <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: SC_COL, padding: "0 20px", borderBottom: BORDER, background: "#FAFAFA" }}>
+        {SC_HEADERS.map(({ label, sortKey: sk, center }, i) => (
+          <div key={i}
+            onClick={sk ? () => {
+              if (sortKey === sk) setSortDir(d => d === "asc" ? "desc" : "asc");
+              else { setSortKey(sk); setSortDir("asc"); }
+            } : undefined}
+            style={{
+              height: 40, display: "flex", alignItems: "center", paddingInline: 8,
+              fontSize: 11, fontWeight: 500, color: "#8E8E97",
+              justifyContent: center ? "center" : "flex-start",
+              cursor: sk ? "pointer" : "default",
+              userSelect: "none", whiteSpace: "nowrap", overflow: "hidden",
+            }}
+          >
+            {label}
+            {sk && <SortArrow active={sortKey === sk} dir={sortKey === sk ? sortDir : "asc"} />}
+          </div>
         ))}
       </div>
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      {/* Rows */}
+      <div style={{
+        flex: 1, overflowY: "auto",
+        opacity: rowsVis ? 1 : 0,
+        transform: rowsVis ? "translateY(0)" : "translateY(4px)",
+        transition: "opacity 160ms ease, transform 160ms ease",
+      }}>
         {activated.map((a, idx) => {
-          const assigned   = a.assignedActivityIds.length;
-          const completed  = Math.min(assigned, a.assignedActivityIds.slice(0, Math.round(assigned * 0.6)).length);
-          const pct        = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
-          const isLast     = idx === activated.length - 1;
-          const statusLabel = pct === 100 ? "Completed" : pct === 0 ? "Not Started" : "In Progress";
-          const statusColor = pct === 100 ? "#22A062" : pct === 0 ? "#8E8E97" : "#C28F11";
-          const statusBg    = pct === 100 ? "#EBFAF2" : pct === 0 ? "#F8F8FA" : "#FEF9E6";
+          const isLast      = idx === activated.length - 1;
+          const statusLabel = a.pct === 100 ? "Completed" : a.pct === 0 ? "Not Started" : "In Progress";
+          const statusColor = a.pct === 100 ? "#22A062" : a.pct === 0 ? "#8E8E97" : "#C28F11";
+          const statusBg    = a.pct === 100 ? "#EBFAF2" : a.pct === 0 ? "#F8F8FA" : "#FEF9E6";
           return (
-            <div key={a.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 180px 110px", paddingInline: 24, minHeight: 56, alignItems: "center", borderBottom: isLast ? "none" : BORDER, background: "#fff" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 30, height: 30, borderRadius: "50%", background: hexAlpha("#3E4FD3", 0.1), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#3E4FD3", flexShrink: 0 }}>
-                  {(a.name.split(" ")[0][0] + (a.name.split(" ")[1]?.[0] ?? "")).toUpperCase()}
+            <div key={a.id}
+              onMouseEnter={() => setHoveredRow(a.id)}
+              onMouseLeave={() => setHoveredRow(null)}
+              style={{
+                display: "grid", gridTemplateColumns: SC_COL,
+                padding: "0 20px", alignItems: "center",
+                borderBottom: isLast ? "none" : BORDER,
+                background: hoveredRow === a.id ? "#EDEEFD" : "#fff",
+                transition: `background ${MS.dFast} ${MS.eOut}`,
+              }}
+            >
+              {/* Student */}
+              <div style={{ paddingInline: 8, height: 52, display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
+                <div style={{ width: 30, height: 30, borderRadius: "50%", background: hexAlpha(avatarColor(a.id), 0.12), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: avatarColor(a.id), flexShrink: 0 }}>
+                  {avatarInitials(a.name)}
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "#121216" }}>{a.name}</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</span>
               </div>
-              <span style={{ fontSize: 13, color: "#4A4A55" }}>{assigned}</span>
-              <span style={{ fontSize: 13, color: "#4A4A55" }}>{completed}</span>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {/* Assigned */}
+              <div style={{ paddingInline: 8, fontSize: 12, color: "#4A4A55", textAlign: "center" }}>{a.assigned || "—"}</div>
+              {/* Completed */}
+              <div style={{ paddingInline: 8, fontSize: 12, color: "#4A4A55", textAlign: "center" }}>{a.completed || "—"}</div>
+              {/* Progress */}
+              <div style={{ paddingInline: 8, display: "flex", flexDirection: "column", gap: 4 }}>
                 <div style={{ height: 4, background: "#F0F0F5", borderRadius: 4, width: 120, overflow: "hidden" }}>
-                  <div style={{ width: `${pct}%`, height: "100%", background: "#3E4FD3", borderRadius: 4 }} />
+                  <div style={{ width: `${a.pct}%`, height: "100%", background: "#3E4FD3", borderRadius: 4 }} />
                 </div>
-                <span style={{ fontSize: 11, color: "#8E8E97" }}>{pct}%</span>
+                <span style={{ fontSize: 11, color: "#8E8E97" }}>{a.pct}%</span>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 500, paddingInline: 10, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center", background: statusBg, color: statusColor }}>{statusLabel}</span>
+              {/* Status */}
+              <div style={{ paddingInline: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 500, paddingInline: 10, height: 22, borderRadius: 11, display: "inline-flex", alignItems: "center", background: statusBg, color: statusColor }}>{statusLabel}</span>
+              </div>
             </div>
           );
         })}
