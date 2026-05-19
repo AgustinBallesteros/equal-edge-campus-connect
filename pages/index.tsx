@@ -1766,16 +1766,16 @@ function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent, secti
   const sectionJSX: Record<string, React.ReactNode> = {
     yourStudents: (
       <Collapse show={showYourStudents}>
-        <div style={{ paddingBottom: 48 }}>
+        <div>
           <SectionHeader title="Your students" />
           <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
             <FadeSlot show={hasLeftCol} style={{ flex: "0 0 50%", minWidth: 0 }}>
               <StudentLeaderboard onNavigate={onNavigate} onOpenStudent={onOpenStudent} />
             </FadeSlot>
-            <FadeSlot show={hasRightCol} style={{ flex: 1, minWidth: 0 }}>
-              <Collapse show={showEngagement}><div style={{ paddingBottom: 16 }}><EngagementGraph view={view} /></div></Collapse>
-              <Collapse show={showActivities}><div style={{ paddingBottom: 16 }}><MyAssignedActivities /></div></Collapse>
-              <Collapse show={showIntake}><div style={{ paddingBottom: 16 }}><MyIntake /></div></Collapse>
+            <FadeSlot show={hasRightCol} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+              <Collapse show={showEngagement}><EngagementGraph view={view} /></Collapse>
+              <Collapse show={showActivities}><MyAssignedActivities /></Collapse>
+              <Collapse show={showIntake}><MyIntake /></Collapse>
               <Collapse show={showEvents}><MyEvents onNavigate={onNavigate} /></Collapse>
             </FadeSlot>
           </div>
@@ -1784,7 +1784,7 @@ function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent, secti
     ),
     programSnapshot: (
       <Collapse show={showProgramSection}>
-        <div style={{ paddingBottom: 48 }}>
+        <div>
           <SectionHeader
             title="How is your program doing?"
             subtitle="A snapshot of engagement across all your students this month"
@@ -1807,7 +1807,7 @@ function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent, secti
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
       {sectionOrder.map(key => (
         <div key={key}>{sectionJSX[key]}</div>
       ))}
