@@ -5837,6 +5837,20 @@ const actMenuItemStyle: React.CSSProperties = {
   fontFamily: "var(--font-inter)", display: "block",
 };
 
+type ActivitySortKey = "title" | "assignedTo" | "dueDate" | "completion" | "overdue";
+
+const ACT_COL = "minmax(0,1fr) 160px 130px 150px minmax(0,170px) 80px 44px";
+
+const ACT_HEADERS: { label: string; sortKey: ActivitySortKey | null; center: boolean }[] = [
+  { label: "Activity",    sortKey: "title",      center: false },
+  { label: "Assigned To", sortKey: "assignedTo", center: false },
+  { label: "Due Date",    sortKey: "dueDate",    center: false },
+  { label: "Recurrence",  sortKey: null,         center: false },
+  { label: "Completion",  sortKey: "completion", center: false },
+  { label: "Overdue",     sortKey: "overdue",    center: true  },
+  { label: "",            sortKey: null,         center: false },
+];
+
 function ActivitiesPage() {
   const [view,        setView]        = useState<ActivityView>("Activities");
   const [filter,      setFilter]      = useState<ActivityFilter>("All");
@@ -5847,6 +5861,9 @@ function ActivitiesPage() {
   const [deleteTarget,setDeleteTarget]= useState<ActivityItem | null>(null);
   const [toastMsg,    setToastMsg]    = useState("");
   const [toastShow,   setToastShow]   = useState(false);
+  const [hoveredRow,  setHoveredRow]  = useState<number | null>(null);
+  const [sortKey,     setSortKey]     = useState<ActivitySortKey>("title");
+  const [sortDir,     setSortDir]     = useState<SortDir>("asc");
   const [activeId,    setActiveId]    = useState<number | null>(null);
   const [displayId,   setDisplayId]   = useState<number | null>(null);
   const [pageVis,     setPageVis]     = useState(true);
@@ -5904,7 +5921,19 @@ function ActivitiesPage() {
     Completed: ACTIVITY_ITEMS.filter(a => a.status === "Completed").length,
   };
 
-  const filtered = ACTIVITY_ITEMS.filter(a => rowFilter === "All" || a.status === rowFilter);
+  const filtered = ACTIVITY_ITEMS
+    .filter(a => rowFilter === "All" || a.status === rowFilter)
+    .sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "title":      cmp = a.title.localeCompare(b.title); break;
+        case "assignedTo": cmp = a.assignedTo.count - b.assignedTo.count; break;
+        case "dueDate":    cmp = (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"); break;
+        case "completion": cmp = (a.completedCount / Math.max(a.totalCount, 1)) - (b.completedCount / Math.max(b.totalCount, 1)); break;
+        case "overdue":    cmp = a.overdueCount - b.overdueCount; break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
 
   function fmtAssigned(at: ActivityAssignedTo): string {
     if (at.type === "all")   return "All Students";
@@ -6034,65 +6063,105 @@ function ActivitiesPage() {
               </div>
 
               {/* ── Table ── */}
-              <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                 {/* Header */}
-                <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "1fr 160px 130px 150px 170px 80px 48px", paddingInline: 24, height: 40, borderBottom: BORDER, background: "#FAFAFA", alignItems: "center" }}>
-                  {["Activity", "Assigned To", "Due Date", "Recurrence", "Completion", "Overdue", ""].map(label => (
-                    <span key={label} style={{ fontSize: 11, fontWeight: 600, color: "#8E8E97", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+                <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: ACT_COL, padding: "0 20px", borderBottom: BORDER, background: "#FAFAFA" }}>
+                  {ACT_HEADERS.map(({ label, sortKey: sk, center }, i) => (
+                    <div key={i}
+                      onClick={sk ? () => {
+                        if (sortKey === sk) setSortDir(d => d === "asc" ? "desc" : "asc");
+                        else { setSortKey(sk); setSortDir("asc"); }
+                      } : undefined}
+                      style={{
+                        height: 40, display: "flex", alignItems: "center", paddingInline: 8,
+                        fontSize: 11, fontWeight: 500, color: "#8E8E97",
+                        justifyContent: center ? "center" : "flex-start",
+                        cursor: sk ? "pointer" : "default",
+                        userSelect: "none", whiteSpace: "nowrap", overflow: "hidden",
+                      }}
+                    >
+                      {label}
+                      {sk && <SortArrow active={sortKey === sk} dir={sortKey === sk ? sortDir : "asc"} />}
+                    </div>
                   ))}
                 </div>
                 {/* Rows */}
-                <div style={{ flex: 1, overflowY: "auto", opacity: rowsVis ? 1 : 0, transition: "opacity 120ms ease" }}>
+                <div style={{
+                  flex: 1, overflowY: "auto",
+                  opacity: rowsVis ? 1 : 0,
+                  transform: rowsVis ? "translateY(0)" : "translateY(4px)",
+                  transition: "opacity 160ms ease, transform 160ms ease",
+                }}>
                   {filtered.length === 0 ? (
-                    <div style={{ padding: "48px 24px", textAlign: "center", color: "#8E8E97", fontSize: 14 }}>No activities match this filter.</div>
+                    <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "#C5C5CC" }}>No activities match this filter.</div>
                   ) : filtered.map((item, idx) => {
                     const isLast    = idx === filtered.length - 1;
                     const isOverdue = item.status === "Overdue";
                     const pct       = item.totalCount > 0 ? (item.completedCount / item.totalCount) * 100 : 0;
+                    const menuOpen  = openMenu === item.id;
                     return (
-                      <div key={item.id} style={{ display: "grid", gridTemplateColumns: "1fr 160px 130px 150px 170px 80px 48px", paddingInline: 24, minHeight: 68, alignItems: "center", borderBottom: isLast ? "none" : BORDER, background: isOverdue ? hexAlpha("#DC2626", 0.018) : "#fff" }}>
+                      <div key={item.id}
+                        onMouseEnter={() => setHoveredRow(item.id)}
+                        onMouseLeave={() => setHoveredRow(null)}
+                        style={{
+                          display: "grid", gridTemplateColumns: ACT_COL,
+                          padding: "0 20px", alignItems: "center",
+                          borderBottom: isLast ? "none" : BORDER,
+                          background: isOverdue && hoveredRow !== item.id
+                            ? hexAlpha("#DC2626", 0.018)
+                            : hoveredRow === item.id ? "#EDEEFD" : "#fff",
+                          transition: `background ${MS.dFast} ${MS.eOut}`,
+                        }}
+                      >
                         {/* Activity */}
-                        <div style={{ paddingRight: 16 }}>
-                          <span style={{ fontSize: 14, fontWeight: 500, color: isOverdue ? "#DC2626" : "#121216" }}>{item.title}</span>
+                        <div style={{ paddingInline: 8, minHeight: 68, display: "flex", alignItems: "center", overflow: "hidden" }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: isOverdue ? "#DC2626" : "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</span>
                         </div>
                         {/* Assigned to */}
-                        <span style={{ fontSize: 13, color: "#4A4A55" }}>{fmtAssigned(item.assignedTo)}</span>
+                        <div style={{ paddingInline: 8, fontSize: 12, color: "#4A4A55", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmtAssigned(item.assignedTo)}</div>
                         {/* Due Date */}
-                        <span style={{ fontSize: 13 }}>{fmtDueDate(item)}</span>
+                        <div style={{ paddingInline: 8, fontSize: 12 }}>{fmtDueDate(item)}</div>
                         {/* Recurrence */}
-                        <span style={{ fontSize: 13 }}>{fmtRecurrence(item.recurrence)}</span>
+                        <div style={{ paddingInline: 8, fontSize: 12 }}>{fmtRecurrence(item.recurrence)}</div>
                         {/* Completion */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                        <div style={{ paddingInline: 8, display: "flex", flexDirection: "column", gap: 5 }}>
                           <div style={{ height: 4, background: "#F0F0F5", borderRadius: 4, width: 120, overflow: "hidden" }}>
                             <div style={{ width: `${pct}%`, height: "100%", background: isOverdue ? "#F59E0B" : "#3E4FD3", borderRadius: 4 }} />
                           </div>
-                          <span style={{ fontSize: 12, color: "#8E8E97" }}>{item.completedCount}/{item.totalCount} completed</span>
+                          <span style={{ fontSize: 11, color: "#8E8E97" }}>{item.completedCount}/{item.totalCount} completed</span>
                         </div>
                         {/* Overdue count */}
-                        <div>
+                        <div style={{ paddingInline: 8, display: "flex", justifyContent: "center" }}>
                           {item.overdueCount > 0
                             ? <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%", background: "#FFEFEF", color: "#DC2626", fontSize: 12, fontWeight: 600 }}>{item.overdueCount}</span>
-                            : <span style={{ color: "#C8C8D0", fontSize: 16 }}>—</span>
+                            : <span style={{ color: "#C8C8D0", fontSize: 14 }}>—</span>
                           }
                         </div>
                         {/* ⋮ Menu */}
-                        <div style={{ position: "relative" }}>
+                        <div style={{ paddingInline: 4, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                           <button
                             onMouseDown={e => e.stopPropagation()}
-                            onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === item.id ? null : item.id); }}
-                            style={{ width: 32, height: 32, borderRadius: 6, border: "none", background: openMenu === item.id ? "#F0F0F5" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A4A55" }}
+                            onClick={e => { e.stopPropagation(); setOpenMenu(menuOpen ? null : item.id); }}
+                            style={{ width: 28, height: 28, borderRadius: 6, border: BORDER, background: menuOpen ? "#F8F8FA" : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                           >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="12.5" r="1.5"/></svg>
+                            <svg width="3" height="13" viewBox="0 0 3 13" fill="#8E8E97">
+                              <circle cx="1.5" cy="1.5" r="1.5"/>
+                              <circle cx="1.5" cy="6.5" r="1.5"/>
+                              <circle cx="1.5" cy="11.5" r="1.5"/>
+                            </svg>
                           </button>
-                          {openMenu === item.id && (
-                            <div onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 50, background: "#fff", border: BORDER, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "4px 0", minWidth: 180 }}>
+                          <PopoverTransition show={menuOpen} style={{ position: "absolute", right: 0, top: "calc(100% + 2px)", zIndex: 50 }}>
+                            <div
+                              onMouseDown={e => e.stopPropagation()}
+                              style={{ background: "#fff", border: BORDER, borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 180 }}
+                            >
                               <button onClick={() => openDetail(item.id, false)} style={actMenuItemStyle}>View Details</button>
                               <button onClick={() => nudge(item)} style={actMenuItemStyle}>Nudge Incomplete</button>
                               <button onClick={() => openDetail(item.id, true)} style={actMenuItemStyle}>Edit</button>
-                              <div style={{ height: 1, background: "#E5E5EA", margin: "4px 0" }} />
+                              <div style={{ height: 1, background: "#E5E5EA" }} />
                               <button onClick={() => { setDeleteTarget(item); setOpenMenu(null); }} style={{ ...actMenuItemStyle, color: "#DC2626" }}>Delete</button>
                             </div>
-                          )}
+                          </PopoverTransition>
                         </div>
                       </div>
                     );
