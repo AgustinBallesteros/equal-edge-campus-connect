@@ -844,6 +844,7 @@ function makePageConfigs(
   onAddResource:   () => void,
   onNewScript:     () => void,
   onNewEvent:      () => void,
+  onNewActivity:   () => void,
 ): Record<NavId, PageConfig> {
   const activeLesson = activeLessonId ? LESSONS.find(l => l.id === activeLessonId) ?? null : null;
   return {
@@ -861,7 +862,7 @@ function makePageConfigs(
         }
       : { title: "Learn Library",  description: "Browse and assign lessons to students", actions: null },
     4: { title: "Script Library", description: "Manage communication templates available to students",    actions: <BtnMain label="New Script" onClick={onNewScript} /> },
-    5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" /> },
+    5: { title: "Activities",     description: "Assign follow-up tasks and track student completion",     actions: <BtnMain label="New Activity" onClick={onNewActivity} /> },
     6: { title: "Messages",       description: "",                                                        actions: <BtnMain label="+ New Message" onClick={onNewMessage} /> },
     7: { title: "Events",         description: "Shared with all students in the app",                    actions: <BtnMain label="+ New Event" onClick={onNewEvent} /> },
     8: { title: "Resources",      description: "Links, documents, and videos available to all students", actions: <BtnMain label="+ Add Resource" onClick={onAddResource} /> },
@@ -6066,6 +6067,254 @@ function ActivityDetailActions({ activityId, onDelete, onNudgeAll }: { activityI
   );
 }
 
+// ─── New Activity Modal ───────────────────────────────────────────────────────
+type AssignTab = "Individual Students" | "Group" | "All Students";
+const ASSIGN_TABS: AssignTab[] = ["Individual Students", "Group", "All Students"];
+
+function NewActivityModal({ show, onClose }: { show: boolean; onClose: () => void }) {
+  const [mounted,     setMounted]     = useState(show);
+  const [vis,         setVis]         = useState(show);
+  const [title,       setTitle]       = useState("");
+  const [description, setDescription] = useState("");
+  const [dueDate,     setDueDate]     = useState<string | null>(null);
+  const [assignTab,   setAssignTab]   = useState<AssignTab>("Individual Students");
+  const [selected,    setSelected]    = useState<Set<number>>(new Set());
+  const [query,       setQuery]       = useState("");
+  const [subTasks,    setSubTasks]    = useState<{ id: number; title: string; duration: number }[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (show) {
+      setMounted(true);
+      const id = setTimeout(() => setVis(true), 16);
+      return () => clearTimeout(id);
+    } else {
+      setVis(false);
+      const t = setTimeout(() => {
+        setMounted(false);
+        setTitle(""); setDescription(""); setDueDate(null);
+        setAssignTab("Individual Students"); setSelected(new Set());
+        setQuery(""); setSubTasks([]);
+      }, 220);
+      return () => clearTimeout(t);
+    }
+  }, [show]);
+
+  if (!mounted) return null;
+
+  const filtered = ALUMNI.filter(a =>
+    !query ||
+    a.name.toLowerCase().includes(query.toLowerCase()) ||
+    alumniEmail(a.name).includes(query.toLowerCase())
+  );
+  const selectedStudents = ALUMNI.filter(a => selected.has(a.id));
+
+  function toggle(id: number) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  function addSubTask() {
+    setSubTasks(prev => [...prev, { id: Date.now(), title: "", duration: 15 }]);
+  }
+
+  function removeSubTask(id: number) {
+    setSubTasks(prev => prev.filter(s => s.id !== id));
+  }
+
+  function updateSubTask(id: number, field: "title" | "duration", value: string | number) {
+    setSubTasks(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+  }
+
+  const labelStyle: React.CSSProperties = { fontSize: 14, fontWeight: 600, color: "#121216", margin: "0 0 8px" };
+  const inputStyle: React.CSSProperties = {
+    width: "100%", boxSizing: "border-box", border: BORDER, borderRadius: 8,
+    padding: "10px 12px", fontSize: 14, color: "#121216",
+    fontFamily: "var(--font-inter)", outline: "none", background: "#fff",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 200, background: vis ? "rgba(0,0,0,0.32)" : "rgba(0,0,0,0)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 220ms ease" }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: "#fff", borderRadius: 14, width: 560, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 40px rgba(0,0,0,0.16)", opacity: vis ? 1 : 0, transform: vis ? "none" : "scale(0.97) translateY(8px)", transition: "opacity 220ms ease, transform 220ms ease" }}
+      >
+        {/* Header */}
+        <div style={{ padding: "24px 24px 20px", flexShrink: 0 }}>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#121216" }}>New Activity</p>
+        </div>
+        <div style={{ height: 1, background: "#E8E8EC", flexShrink: 0 }} />
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* Activity Title */}
+          <div>
+            <p style={labelStyle}>Activity Title</p>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. Register for Spring 2027 Courses"
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <p style={labelStyle}>Description</p>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }}
+            />
+          </div>
+
+          {/* Due Date */}
+          <div>
+            <p style={labelStyle}>Due Date</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 200, flexShrink: 0 }}>
+                <DatePickerField value={dueDate} onChange={setDueDate} />
+              </div>
+              {dueDate && (
+                <span style={{ fontSize: 13, color: "#8E8E97" }}>Series will automatically end after 5 months.</span>
+              )}
+            </div>
+          </div>
+
+          {/* Assign To */}
+          <div>
+            <p style={labelStyle}>Assign To</p>
+            {/* Segmented control */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: "#F3F3F7", borderRadius: 10, padding: 3, marginBottom: 10 }}>
+              {ASSIGN_TABS.map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setAssignTab(tab)}
+                  style={{
+                    border: "none", borderRadius: 8, padding: "7px 0",
+                    background: assignTab === tab ? "#fff" : "transparent",
+                    boxShadow: assignTab === tab ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
+                    fontSize: 13, fontWeight: assignTab === tab ? 600 : 400,
+                    color: assignTab === tab ? "#121216" : "#8E8E97",
+                    fontFamily: "var(--font-inter)", cursor: "pointer",
+                    transition: `background ${MS.dFast} ${MS.eOut}, box-shadow ${MS.dFast} ${MS.eOut}`,
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Individual Students picker */}
+            {assignTab === "Individual Students" && (
+              <>
+                {/* Chip + search input */}
+                <div
+                  onClick={() => inputRef.current?.focus()}
+                  style={{ minHeight: 44, padding: "6px 10px", borderRadius: 8, border: "1.5px solid #3E4FD3", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, cursor: "text", marginBottom: 10 }}
+                >
+                  {selectedStudents.map(s => (
+                    <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 26, paddingInline: 9, borderRadius: 20, background: hexAlpha("#3E4FD3", 0.1), fontSize: 12, fontWeight: 500, color: "#3E4FD3" }}>
+                      {chipLabel(s.name)}
+                      <button onClick={e => { e.stopPropagation(); toggle(s.id); }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", color: "#3E4FD3" }}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7"/></svg>
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    ref={inputRef}
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    placeholder={selectedStudents.length === 0 ? "+ Add students..." : ""}
+                    style={{ border: "none", outline: "none", flex: 1, minWidth: 100, fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)", background: "transparent", padding: "2px 0" }}
+                  />
+                </div>
+                {/* Student list */}
+                <div style={{ border: BORDER, borderRadius: 8, maxHeight: 180, overflowY: "auto" }}>
+                  {filtered.length === 0
+                    ? <div style={{ padding: "12px 14px", fontSize: 13, color: "#A0A0AA" }}>No students found.</div>
+                    : filtered.map((a, i) => {
+                        const checked = selected.has(a.id);
+                        return (
+                          <div key={a.id} onClick={() => toggle(a.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", background: checked ? "#F5F6FF" : "#fff", borderBottom: i < filtered.length - 1 ? BORDER : undefined, transition: `background ${MS.dFast} ${MS.eOut}` }}>
+                            <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, border: checked ? "none" : "1.5px solid #C5C5CC", background: checked ? "#3E4FD3" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", transition: `background ${MS.dFast} ${MS.eOut}` }}>
+                              {checked && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5L8.5 2" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                            </div>
+                            <span style={{ fontSize: 14, fontWeight: 500, color: "#121216", flex: 1 }}>{a.name}</span>
+                            <span style={{ fontSize: 13, color: "#A0A0AA" }}>{alumniEmail(a.name)}</span>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              </>
+            )}
+
+            {assignTab === "Group" && (
+              <div style={{ border: BORDER, borderRadius: 8, padding: "14px", fontSize: 13, color: "#8E8E97" }}>Group selection coming soon.</div>
+            )}
+          </div>
+
+          {/* Sub-tasks */}
+          <div>
+            <p style={{ ...labelStyle, margin: "0 0 10px" }}>Sub-tasks <span style={{ fontWeight: 400, color: "#8E8E97" }}>(optional)</span></p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {subTasks.map(st => (
+                <div key={st.id} style={{ display: "flex", alignItems: "center", gap: 8, border: BORDER, borderRadius: 8, padding: "8px 10px", background: "#fff" }}>
+                  {/* Drag handle */}
+                  <svg width="10" height="14" viewBox="0 0 10 14" fill="#C5C5CC" style={{ flexShrink: 0 }}>
+                    <circle cx="2.5" cy="2.5" r="1.5"/><circle cx="7.5" cy="2.5" r="1.5"/>
+                    <circle cx="2.5" cy="7" r="1.5"/><circle cx="7.5" cy="7" r="1.5"/>
+                    <circle cx="2.5" cy="11.5" r="1.5"/><circle cx="7.5" cy="11.5" r="1.5"/>
+                  </svg>
+                  <input
+                    value={st.title}
+                    onChange={e => updateSubTask(st.id, "title", e.target.value)}
+                    placeholder="Sub-task title"
+                    style={{ flex: 1, border: "none", outline: "none", fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)", background: "transparent" }}
+                  />
+                  {/* Duration badge */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F0F0F5", borderRadius: 6, padding: "3px 8px", flexShrink: 0 }}>
+                    <input
+                      type="number"
+                      min={1}
+                      value={st.duration}
+                      onChange={e => updateSubTask(st.id, "duration", Math.max(1, parseInt(e.target.value) || 1))}
+                      style={{ width: 28, border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#4A4A55", fontFamily: "var(--font-inter)", textAlign: "right", padding: 0 }}
+                    />
+                    <span style={{ fontSize: 12, color: "#4A4A55" }}>min</span>
+                    <button onClick={() => removeSubTask(st.id)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", color: "#8E8E97", marginLeft: 2 }}>
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7"/></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={addSubTask}
+              style={{ marginTop: 8, height: 34, paddingInline: 14, borderRadius: 8, border: BORDER, background: "#fff", fontSize: 13, fontWeight: 500, color: "#4A4A55", fontFamily: "var(--font-inter)", cursor: "pointer" }}
+            >
+              + Add sub-task
+            </button>
+          </div>
+
+        </div>
+
+        <div style={{ height: 1, background: "#E8E8EC", flexShrink: 0 }} />
+        {/* Footer */}
+        <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: "#3E4FD3", color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Create Activity</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Activities Page ──────────────────────────────────────────────────────────
 type ActivityView   = "Activities" | "Student Completion";
 type ActivityFilter = "All" | "Active" | "Overdue" | "Completed";
@@ -7265,6 +7514,7 @@ export default function Home() {
   const [addResourceOpen,  setAddResourceOpen]  = useState(false);
   const [newScriptOpen,    setNewScriptOpen]    = useState(false);
   const [newEventOpen,     setNewEventOpen]     = useState(false);
+  const [newActivityOpen,  setNewActivityOpen]  = useState(false);
   const [activeLessonId,   setActiveLessonId]   = useState<number | null>(null);
   const [assignLessonItem, setAssignLessonItem] = useState<LessonItem | null>(null);
   const [activeStudentId,  setActiveStudentId]  = useState<number | null>(null);
@@ -7291,6 +7541,7 @@ export default function Home() {
     () => setAddResourceOpen(true),
     () => setNewScriptOpen(true),
     () => setNewEventOpen(true),
+    () => setNewActivityOpen(true),
   );
 
   const activeStudent = activeStudentId ? ALUMNI.find(a => a.id === activeStudentId) : null;
@@ -7347,6 +7598,7 @@ export default function Home() {
       <AddResourceModal show={addResourceOpen} onClose={() => setAddResourceOpen(false)} />
       <NewScriptModal show={newScriptOpen} onClose={() => setNewScriptOpen(false)} />
       <NewEventModal show={newEventOpen} onClose={() => setNewEventOpen(false)} />
+      <NewActivityModal show={newActivityOpen} onClose={() => setNewActivityOpen(false)} />
       <AssignLessonModal
         lesson={assignLessonItem}
         show={assignLessonItem !== null}
