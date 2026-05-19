@@ -6326,7 +6326,7 @@ function ActivitiesPage({ onOpenActivity }: { onOpenActivity: (id: number) => vo
                       >
                         {/* Activity */}
                         <div style={{ paddingInline: 8, minHeight: 68, display: "flex", alignItems: "center", overflow: "hidden" }}>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: isOverdue ? "#DC2626" : "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</span>
+                          <span onClick={() => onOpenActivity(item.id)} style={{ fontSize: 13, fontWeight: 500, color: isOverdue ? "#DC2626" : "#121216", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer", textDecorationLine: hoveredRow === item.id ? "underline" : "none", textDecorationColor: isOverdue ? "#DC2626" : "#121216" }}>{item.title}</span>
                         </div>
                         {/* Assigned to */}
                         <div style={{ paddingInline: 8, fontSize: 12, color: "#4A4A55", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fmtAssigned(item.assignedTo)}</div>
