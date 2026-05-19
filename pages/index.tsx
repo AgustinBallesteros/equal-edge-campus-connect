@@ -225,7 +225,13 @@ function DashboardActions({
   toolsVisible: ToolsVisible;
   setToolsVisible: (tv: ToolsVisible) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open,         setOpen]         = useState(false);
+  const [sectionOrder, setSectionOrder] = useState<string[]>(() => TOOL_SECTIONS.map(s => s.key));
+  const [dragSrc,      setDragSrc]      = useState<string | null>(null);
+  const [dragOver,     setDragOver]     = useState<string | null>(null);
+  const isDraggingRef = useRef(false);
+
+  const orderedSections = sectionOrder.map(k => TOOL_SECTIONS.find(s => s.key === k)!);
 
   function getSectionState(section: typeof TOOL_SECTIONS[number]): CheckState {
     const keys = section.tools.map(t => t.key);
@@ -236,7 +242,8 @@ function DashboardActions({
   }
 
   function toggleSection(section: typeof TOOL_SECTIONS[number]) {
-    const newVal = getSectionState(section) === "unchecked"; // if unchecked → true; else → false
+    if (isDraggingRef.current) return;
+    const newVal = getSectionState(section) === "unchecked";
     const patch: Partial<ToolsVisible> = {};
     section.tools.forEach(t => { patch[t.key] = newVal; });
     setToolsVisible({ ...toolsVisible, ...patch } as ToolsVisible);
@@ -244,6 +251,34 @@ function DashboardActions({
 
   function toggleTool(key: ToolKey) {
     setToolsVisible({ ...toolsVisible, [key]: !toolsVisible[key] });
+  }
+
+  function handleDragStart(key: string) {
+    isDraggingRef.current = true;
+    setDragSrc(key);
+  }
+
+  function handleDragOver(e: React.DragEvent, key: string) {
+    e.preventDefault();
+    if (key !== dragSrc) setDragOver(key);
+  }
+
+  function handleDrop(targetKey: string) {
+    if (dragSrc && dragSrc !== targetKey) {
+      const src = sectionOrder.indexOf(dragSrc);
+      const tgt = sectionOrder.indexOf(targetKey);
+      const next = [...sectionOrder];
+      next.splice(src, 1);
+      next.splice(tgt, 0, dragSrc);
+      setSectionOrder(next);
+    }
+    setDragSrc(null); setDragOver(null);
+    setTimeout(() => { isDraggingRef.current = false; }, 0);
+  }
+
+  function handleDragEnd() {
+    setDragSrc(null); setDragOver(null);
+    setTimeout(() => { isDraggingRef.current = false; }, 0);
   }
 
   return (
@@ -275,32 +310,55 @@ function DashboardActions({
             background: "#fff", border: BORDER, borderRadius: 10,
             boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "6px 0", minWidth: 236,
           }}>
-            {TOOL_SECTIONS.map((section, si) => (
-              <div key={section.key}>
-                {si > 0 && <div style={{ height: 1, background: "#E5E5EA", margin: "4px 0" }} />}
-
-                {/* Section row */}
+            {orderedSections.map((section, si) => {
+              const isBeingDragged = dragSrc === section.key;
+              const isDropTarget   = dragOver === section.key && !isBeingDragged;
+              return (
                 <div
-                  onClick={() => toggleSection(section)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 14px", cursor: "pointer" }}
+                  key={section.key}
+                  onDragOver={e => handleDragOver(e, section.key)}
+                  onDrop={() => handleDrop(section.key)}
+                  style={{
+                    borderTop: isDropTarget
+                      ? "2px solid #3E4FD3"
+                      : si > 0 ? "1px solid #E5E5EA" : "none",
+                    marginTop: si > 0 && !isDropTarget ? 4 : 0,
+                    opacity: isBeingDragged ? 0.4 : 1,
+                    transition: "opacity 120ms ease",
+                  }}
                 >
-                  <Checkbox state={getSectionState(section)} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>{section.label}</span>
-                </div>
-
-                {/* Tool rows */}
-                {section.tools.map(tool => (
+                  {/* Section row — draggable */}
                   <div
-                    key={tool.key}
-                    onClick={() => toggleTool(tool.key)}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 14px 5px 38px", cursor: "pointer" }}
+                    draggable
+                    onDragStart={() => handleDragStart(section.key)}
+                    onDragEnd={handleDragEnd}
+                    onClick={() => toggleSection(section)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 14px", cursor: "pointer" }}
                   >
-                    <Checkbox state={toolsVisible[tool.key] ? "checked" : "unchecked"} />
-                    <span style={{ fontSize: 13, fontWeight: 400, color: "#121216" }}>{tool.label}</span>
+                    {/* Drag handle */}
+                    <svg width="10" height="14" viewBox="0 0 10 14" fill="#C5C5CC" style={{ cursor: "grab", flexShrink: 0 }}>
+                      <circle cx="2.5" cy="2.5" r="1.5"/><circle cx="7.5" cy="2.5" r="1.5"/>
+                      <circle cx="2.5" cy="7"   r="1.5"/><circle cx="7.5" cy="7"   r="1.5"/>
+                      <circle cx="2.5" cy="11.5" r="1.5"/><circle cx="7.5" cy="11.5" r="1.5"/>
+                    </svg>
+                    <Checkbox state={getSectionState(section)} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#121216" }}>{section.label}</span>
                   </div>
-                ))}
-              </div>
-            ))}
+
+                  {/* Tool rows */}
+                  {section.tools.map(tool => (
+                    <div
+                      key={tool.key}
+                      onClick={() => toggleTool(tool.key)}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 14px 5px 46px", cursor: "pointer" }}
+                    >
+                      <Checkbox state={toolsVisible[tool.key] ? "checked" : "unchecked"} />
+                      <span style={{ fontSize: 13, fontWeight: 400, color: "#121216" }}>{tool.label}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </PopoverTransition>
       </div>
