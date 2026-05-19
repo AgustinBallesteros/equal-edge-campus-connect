@@ -527,7 +527,7 @@ function getStudentActivityStatus(alumniId: number, activityId: number): "Comple
 
 // ─── Student Profile Page ─────────────────────────────────────────────────────
 
-function StudentProfilePage({ studentId, onBack, onOpenStudent, onNavigate }: { studentId: number; onBack: () => void; onOpenStudent: (id: number | null) => void; onNavigate: (page: NavId) => void }) {
+function StudentProfilePage({ studentId, onBack, onOpenStudent, onNavigate, onOpenConversation }: { studentId: number; onBack: () => void; onOpenStudent: (id: number | null) => void; onNavigate: (page: NavId) => void; onOpenConversation: (studentId: number) => void }) {
   const student = ALUMNI.find(a => a.id === studentId)!;
   const staff   = STAFF.find(s => s.id === student.staffMemberId);
 
@@ -791,7 +791,7 @@ function StudentProfilePage({ studentId, onBack, onOpenStudent, onNavigate }: { 
                   })}
                 </div>
                 <button
-                  onClick={() => { onBack(); onNavigate(6); }}
+                  onClick={() => onOpenConversation(studentId)}
                   style={{
                     background: "none", border: "none", padding: 0,
                     fontSize: 13, fontWeight: 500, color: "#3E4FD3",
@@ -4400,9 +4400,12 @@ function sortedMsgThreads() {
   });
 }
 
-function MessagesPage({ onOpenStudent }: { onOpenStudent: (id: number | null) => void }) {
+function MessagesPage({ onOpenStudent, initialStudentId }: { onOpenStudent: (id: number | null) => void; initialStudentId?: number | null }) {
   const threads = sortedMsgThreads();
-  const [activeId,   setActiveId]   = useState<number>(threads[0].id);
+  const initialThread = initialStudentId != null
+    ? (threads.find(t => t.studentId === initialStudentId) ?? threads[0])
+    : threads[0];
+  const [activeId,   setActiveId]   = useState<number>(initialThread.id);
   const [search,     setSearch]     = useState("");
   const [inputVal,   setInputVal]   = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -6347,6 +6350,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
   const [vis,            setVis]            = useState(true);
   const [slideDir,       setSlideDir]       = useState<"left" | "right">("right");
   const [displayStudentId, setDisplayStudentId] = useState<number | null>(null);
+  const [focusMsgStudentId, setFocusMsgStudentId] = useState<number | null>(null);
 
   useEffect(() => {
     if (page === displayPage) return;
@@ -6379,7 +6383,17 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
         transition: "opacity 160ms ease, transform 160ms ease",
       }}>
         {displayStudentId !== null ? (
-          <StudentProfilePage studentId={displayStudentId} onBack={() => onOpenStudent(null)} onOpenStudent={onOpenStudent} onNavigate={onNavigate} />
+          <StudentProfilePage
+            studentId={displayStudentId}
+            onBack={() => onOpenStudent(null)}
+            onOpenStudent={onOpenStudent}
+            onNavigate={onNavigate}
+            onOpenConversation={(sid) => {
+              setFocusMsgStudentId(sid);
+              onOpenStudent(null);
+              onNavigate(6);
+            }}
+          />
         ) : (
           <>
             {displayPage === 1 && (
@@ -6390,7 +6404,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
             {displayPage === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage onOpenStudent={onOpenStudent} />)}
             {displayPage === 3 && <LessonsPage activeLessonId={activeLessonId} setActiveLessonId={setActiveLessonId} onAssignLesson={onAssignLesson} />}
             {displayPage === 4 && <ScriptLibraryPage onNewScript={onNewScript} />}
-            {displayPage === 6 && <MessagesPage onOpenStudent={onOpenStudent} />}
+            {displayPage === 6 && <MessagesPage onOpenStudent={onOpenStudent} initialStudentId={focusMsgStudentId} />}
             {displayPage === 7 && <EventsPage />}
             {displayPage === 8 && <ResourcesPage />}
             {displayPage !== 1 && displayPage !== 2 && displayPage !== 3 && displayPage !== 4 && displayPage !== 6 && displayPage !== 7 && displayPage !== 8 && (
