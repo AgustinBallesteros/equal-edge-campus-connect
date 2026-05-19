@@ -218,17 +218,18 @@ function Checkbox({ state }: { state: CheckState }) {
 
 // ─── Dashboard actions (toolbar) ──────────────────────────────────────────────
 function DashboardActions({
-  view, onViewChange, toolsVisible, setToolsVisible,
+  view, onViewChange, toolsVisible, setToolsVisible, sectionOrder, setSectionOrder,
 }: {
   view: ViewTab;
   onViewChange: (v: ViewTab) => void;
   toolsVisible: ToolsVisible;
   setToolsVisible: (tv: ToolsVisible) => void;
+  sectionOrder: string[];
+  setSectionOrder: (o: string[]) => void;
 }) {
-  const [open,         setOpen]         = useState(false);
-  const [sectionOrder, setSectionOrder] = useState<string[]>(() => TOOL_SECTIONS.map(s => s.key));
-  const [dragSrc,      setDragSrc]      = useState<string | null>(null);
-  const [dragOver,     setDragOver]     = useState<string | null>(null);
+  const [open,    setOpen]    = useState(false);
+  const [dragSrc, setDragSrc] = useState<string | null>(null);
+  const [dragOver,setDragOver]= useState<string | null>(null);
   const isDraggingRef = useRef(false);
 
   const orderedSections = sectionOrder.map(k => TOOL_SECTIONS.find(s => s.key === k)!);
@@ -903,10 +904,12 @@ function makePageConfigs(
   onNewScript:     () => void,
   onNewEvent:      () => void,
   onNewActivity:   () => void,
+  sectionOrder:    string[],
+  setSectionOrder: (o: string[]) => void,
 ): Record<NavId, PageConfig> {
   const activeLesson = activeLessonId ? LESSONS.find(l => l.id === activeLessonId) ?? null : null;
   return {
-    1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",              actions: <DashboardActions view={view} onViewChange={setView} toolsVisible={toolsVisible} setToolsVisible={setToolsVisible} /> },
+    1: { title: "Dashboard",      description: "Good morning, Dr. Okafor  ·  Spring 2026",              actions: <DashboardActions view={view} onViewChange={setView} toolsVisible={toolsVisible} setToolsVisible={setToolsVisible} sectionOrder={sectionOrder} setSectionOrder={setSectionOrder} /> },
     2: { title: "Student Roster", description: "Manage student access and invitation status",             actions: <><BtnMain label="Add Student" onClick={onAddStudent} /><BtnSecondary label="Import CSV" onClick={onImportCSV} /></> },
     3: activeLesson
       ? {
@@ -1747,8 +1750,7 @@ function ProgramSnapshot({ toolsVisible }: { toolsVisible: ToolsVisible }) {
 }
 
 // ── Dashboard root ────────────────────────────────────────────────────────────
-function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent }: { view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; onOpenStudent: (id: number | null) => void }) {
-  // ── "Your Students" section visibility ──
+function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent, sectionOrder }: { view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; onOpenStudent: (id: number | null) => void; sectionOrder: string[] }) {
   const tv = toolsVisible;
   const showLeaderboard   = tv.studentLeaderboard;
   const showEngagement    = tv.engagementGraph;
@@ -1758,17 +1760,11 @@ function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent }: { v
   const hasLeftCol        = showLeaderboard;
   const hasRightCol       = showEngagement || showActivities || showIntake || showEvents;
   const showYourStudents  = hasLeftCol || hasRightCol;
-
-  // ── "Program Snapshot" section visibility ──
   const showProgramSection = tv.programHealth || tv.studentsOnTrack || tv.activationRate || tv.lessonsCompleted || tv.activitiesOverdue;
-
-  // ── "What's Working" section visibility ──
   const showWhatsWorking   = tv.scripts || tv.lessons || tv.messages;
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-
-      {/* Your students */}
+  const sectionJSX: Record<string, React.ReactNode> = {
+    yourStudents: (
       <Collapse show={showYourStudents}>
         <div style={{ paddingBottom: 48 }}>
           <SectionHeader title="Your students" />
@@ -1785,8 +1781,8 @@ function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent }: { v
           </div>
         </div>
       </Collapse>
-
-      {/* Program snapshot */}
+    ),
+    programSnapshot: (
       <Collapse show={showProgramSection}>
         <div style={{ paddingBottom: 48 }}>
           <SectionHeader
@@ -1796,8 +1792,8 @@ function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent }: { v
           <ProgramSnapshot toolsVisible={toolsVisible} />
         </div>
       </Collapse>
-
-      {/* What's working */}
+    ),
+    whatsWorking: (
       <Collapse show={showWhatsWorking}>
         <div>
           <SectionHeader
@@ -1807,7 +1803,14 @@ function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent }: { v
           <WhatsWorkingCards toolsVisible={toolsVisible} />
         </div>
       </Collapse>
+    ),
+  };
 
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      {sectionOrder.map(key => (
+        <div key={key}>{sectionJSX[key]}</div>
+      ))}
     </div>
   );
 }
@@ -7685,7 +7688,7 @@ function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => voi
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent, activeActivityId, onOpenActivity, nudgedAll }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number | null) => void; activeActivityId: number | null; onOpenActivity: (id: number | null) => void; nudgedAll: boolean }) {
+function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent, activeActivityId, onOpenActivity, nudgedAll, sectionOrder }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number | null) => void; activeActivityId: number | null; onOpenActivity: (id: number | null) => void; nudgedAll: boolean; sectionOrder: string[] }) {
   const [displayPage,       setDisplayPage]       = useState<NavId>(page);
   const [vis,               setVis]               = useState(true);
   const [slideDir,          setSlideDir]          = useState<"left" | "right">("right");
@@ -7752,7 +7755,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
           <>
             {displayPage === 1 && (
               <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-                <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} onOpenStudent={onOpenStudent} />
+                <DashboardContent view={view} onNavigate={onNavigate} toolsVisible={toolsVisible} onOpenStudent={onOpenStudent} sectionOrder={sectionOrder} />
               </div>
             )}
             {displayPage === 2 && (importOpen ? <RosterImportShell onClose={onImportClose} /> : <RosterPage onOpenStudent={onOpenStudent} />)}
@@ -7791,6 +7794,7 @@ export default function Home() {
   const [activeStudentId,  setActiveStudentId]  = useState<number | null>(null);
   const [activeActivityId, setActiveActivityId] = useState<number | null>(null);
   const [nudgedAll,        setNudgedAll]        = useState(false);
+  const [sectionOrder,     setSectionOrder]     = useState<string[]>(() => TOOL_SECTIONS.map(s => s.key));
 
   // Reset nudgedAll whenever a different (or no) activity is opened
   useEffect(() => { setNudgedAll(false); }, [activeActivityId]);
@@ -7813,6 +7817,8 @@ export default function Home() {
     () => setNewScriptOpen(true),
     () => setNewEventOpen(true),
     () => setNewActivityOpen(true),
+    sectionOrder,
+    setSectionOrder,
   );
 
   const activeStudent = activeStudentId ? ALUMNI.find(a => a.id === activeStudentId) : null;
@@ -7862,6 +7868,7 @@ export default function Home() {
           activeActivityId={activeActivityId}
           onOpenActivity={(id) => setActiveActivityId(id ?? null)}
           nudgedAll={nudgedAll}
+          sectionOrder={sectionOrder}
         />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
