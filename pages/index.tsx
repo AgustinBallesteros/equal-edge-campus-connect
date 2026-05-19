@@ -5604,7 +5604,7 @@ function Toast({ message, show }: { message: string; show: boolean }) {
 }
 
 // ─── Delete Activity Modal ────────────────────────────────────────────────────
-function DeleteActivityModal({ title, show, onClose }: { title: string; show: boolean; onClose: () => void }) {
+function DeleteActivityModal({ title, show, onClose, onConfirm }: { title: string; show: boolean; onClose: () => void; onConfirm?: () => void }) {
   const [mounted, setMounted] = useState(show);
   const [vis,     setVis]     = useState(show);
   useEffect(() => {
@@ -5631,7 +5631,7 @@ function DeleteActivityModal({ title, show, onClose }: { title: string; show: bo
         <div style={{ height: 1, background: "#E5E5EA" }} />
         <div style={{ padding: "16px 24px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: BORDER, background: "#fff", color: "#121216", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Cancel</button>
-          <button onClick={onClose} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Delete</button>
+          <button onClick={() => { onConfirm?.(); onClose(); }} style={{ height: 36, paddingInline: 16, borderRadius: 8, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-inter)", cursor: "pointer" }}>Delete</button>
         </div>
       </div>
     </div>
@@ -5639,7 +5639,7 @@ function DeleteActivityModal({ title, show, onClose }: { title: string; show: bo
 }
 
 // ─── Activity Detail Page ─────────────────────────────────────────────────────
-function ActivityDetailPage({ activityId, onBack }: { activityId: number; onBack: () => void }) {
+function ActivityDetailPage({ activityId, onBack, nudgedAll }: { activityId: number; onBack: () => void; nudgedAll: boolean }) {
   const item = ACTIVITY_ITEMS.find(a => a.id === activityId)!;
   type SCFilter = "All" | "Not Started" | "Overdue" | "Completed";
   const [scFilter, setScFilter] = useState<SCFilter>("All");
@@ -5673,6 +5673,13 @@ function ActivityDetailPage({ activityId, onBack }: { activityId: number; onBack
   };
 
   const visibleStudents = scFilter === "All" ? studentList : studentList.filter(s => s.status === scFilter);
+
+  // When "Nudge All Incomplete" fires from the TopBar, mark every incomplete student as nudged
+  useEffect(() => {
+    if (!nudgedAll) return;
+    const incompleteIds = studentList.filter(s => s.status !== "Completed").map(s => s.id);
+    setNudgedIds(new Set(incompleteIds));
+  }, [nudgedAll]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function nudgeStudent(id: number, name: string) {
     setNudgedIds(prev => new Set(prev).add(id));
@@ -5984,11 +5991,12 @@ function StudentCompletionView() {
 }
 
 // ─── Activity Detail Actions (TopBar actions for activity detail) ─────────────
-function ActivityDetailActions({ activityId, onDelete }: { activityId: number; onDelete: () => void }) {
+function ActivityDetailActions({ activityId, onDelete, onNudgeAll }: { activityId: number; onDelete: () => void; onNudgeAll: () => void }) {
   const item = ACTIVITY_ITEMS.find(a => a.id === activityId)!;
-  const [menuOpen,  setMenuOpen]  = useState(false);
-  const [toastMsg,  setToastMsg]  = useState("");
-  const [toastShow, setToastShow] = useState(false);
+  const [menuOpen,       setMenuOpen]       = useState(false);
+  const [showDeleteModal,setShowDeleteModal] = useState(false);
+  const [toastMsg,       setToastMsg]       = useState("");
+  const [toastShow,      setToastShow]      = useState(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -5998,6 +6006,7 @@ function ActivityDetailActions({ activityId, onDelete }: { activityId: number; o
   }, [menuOpen]);
 
   function nudgeAll() {
+    onNudgeAll();
     const incomplete = item.totalCount - item.completedCount;
     setToastMsg(`Nudge sent to ${incomplete} student${incomplete !== 1 ? "s" : ""}`);
     setToastShow(true);
@@ -6041,12 +6050,18 @@ function ActivityDetailActions({ activityId, onDelete }: { activityId: number; o
           >
             <button onClick={() => setMenuOpen(false)} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", border: "none", background: "#fff", fontSize: 13, color: "#121216", fontFamily: "var(--font-inter)", cursor: "pointer" }}>Edit Activity</button>
             <div style={{ height: 1, background: "#E5E5EA" }} />
-            <button onClick={() => { setMenuOpen(false); onDelete(); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", border: "none", background: "#fff", fontSize: 13, color: "#DC2626", fontFamily: "var(--font-inter)", cursor: "pointer" }}>Delete Activity</button>
+            <button onClick={() => { setMenuOpen(false); setShowDeleteModal(true); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", border: "none", background: "#fff", fontSize: 13, color: "#DC2626", fontFamily: "var(--font-inter)", cursor: "pointer" }}>Delete Activity</button>
           </div>
         </PopoverTransition>
       </div>
 
       <Toast message={toastMsg} show={toastShow} />
+      <DeleteActivityModal
+        title={item.title}
+        show={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={onDelete}
+      />
     </div>
   );
 }
@@ -7150,7 +7165,7 @@ function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => voi
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent, activeActivityId, onOpenActivity }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number | null) => void; activeActivityId: number | null; onOpenActivity: (id: number | null) => void }) {
+function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent, activeActivityId, onOpenActivity, nudgedAll }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number | null) => void; activeActivityId: number | null; onOpenActivity: (id: number | null) => void; nudgedAll: boolean }) {
   const [displayPage,       setDisplayPage]       = useState<NavId>(page);
   const [vis,               setVis]               = useState(true);
   const [slideDir,          setSlideDir]          = useState<"left" | "right">("right");
@@ -7212,7 +7227,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
             }}
           />
         ) : displayActivityId !== null ? (
-          <ActivityDetailPage activityId={displayActivityId} onBack={() => onOpenActivity(null)} />
+          <ActivityDetailPage activityId={displayActivityId} onBack={() => onOpenActivity(null)} nudgedAll={nudgedAll} />
         ) : (
           <>
             {displayPage === 1 && (
@@ -7254,6 +7269,10 @@ export default function Home() {
   const [assignLessonItem, setAssignLessonItem] = useState<LessonItem | null>(null);
   const [activeStudentId,  setActiveStudentId]  = useState<number | null>(null);
   const [activeActivityId, setActiveActivityId] = useState<number | null>(null);
+  const [nudgedAll,        setNudgedAll]        = useState(false);
+
+  // Reset nudgedAll whenever a different (or no) activity is opened
+  useEffect(() => { setNudgedAll(false); }, [activeActivityId]);
 
   function handleNavSelect(id: NavId) {
     setActiveNav(id);
@@ -7299,7 +7318,7 @@ export default function Home() {
               ← Activities
             </button>
           ),
-          actions: <ActivityDetailActions activityId={activeActivityId!} onDelete={() => setActiveActivityId(null)} />,
+          actions: <ActivityDetailActions activityId={activeActivityId!} onDelete={() => setActiveActivityId(null)} onNudgeAll={() => setNudgedAll(true)} />,
         }
       }
     : baseConfigs;
@@ -7320,6 +7339,7 @@ export default function Home() {
           onOpenStudent={(id) => setActiveStudentId(id ?? null)}
           activeActivityId={activeActivityId}
           onOpenActivity={(id) => setActiveActivityId(id ?? null)}
+          nudgedAll={nudgedAll}
         />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
