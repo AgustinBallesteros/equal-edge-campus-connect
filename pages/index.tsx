@@ -527,7 +527,7 @@ function getStudentActivityStatus(alumniId: number, activityId: number): "Comple
 
 // ─── Student Profile Page ─────────────────────────────────────────────────────
 
-function StudentProfilePage({ studentId, onBack, onOpenStudent }: { studentId: number; onBack: () => void; onOpenStudent: (id: number) => void }) {
+function StudentProfilePage({ studentId, onBack, onOpenStudent, onNavigate }: { studentId: number; onBack: () => void; onOpenStudent: (id: number | null) => void; onNavigate: (page: NavId) => void }) {
   const student = ALUMNI.find(a => a.id === studentId)!;
   const staff   = STAFF.find(s => s.id === student.staffMemberId);
 
@@ -791,7 +791,7 @@ function StudentProfilePage({ studentId, onBack, onOpenStudent }: { studentId: n
                   })}
                 </div>
                 <button
-                  onClick={() => onOpenStudent(student.id)}
+                  onClick={() => { onBack(); onNavigate(6); }}
                   style={{
                     background: "none", border: "none", padding: 0,
                     fontSize: 13, fontWeight: 500, color: "#3E4FD3",
@@ -1044,7 +1044,7 @@ const activated = ALUMNI.filter(a => a.status === "Activated").sort((a, b) => b.
 
 const scheduledDateLabel = `${MONTH_NAMES[CAL_TODAY_MONTH].slice(0, 3)} ${CAL_TODAY_DAY}`;
 
-function StudentLeaderboard({ onNavigate, onOpenStudent }: { onNavigate: (page: NavId) => void; onOpenStudent: (id: number) => void }) {
+function StudentLeaderboard({ onNavigate, onOpenStudent }: { onNavigate: (page: NavId) => void; onOpenStudent: (id: number | null) => void }) {
   const [tab,        setTab]        = useState<LeaderTab>("All"); // button highlight
   const [rowTab,     setRowTab]     = useState<LeaderTab>("All"); // actual data
   const [rowsVis,    setRowsVis]    = useState(true);
@@ -1688,7 +1688,7 @@ function ProgramSnapshot({ toolsVisible }: { toolsVisible: ToolsVisible }) {
 }
 
 // ── Dashboard root ────────────────────────────────────────────────────────────
-function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent }: { view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; onOpenStudent: (id: number) => void }) {
+function DashboardContent({ view, onNavigate, toolsVisible, onOpenStudent }: { view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; onOpenStudent: (id: number | null) => void }) {
   // ── "Your Students" section visibility ──
   const tv = toolsVisible;
   const showLeaderboard   = tv.studentLeaderboard;
@@ -2606,7 +2606,7 @@ function RosterImportShell({ onClose }: { onClose: () => void }) {
   );
 }
 
-function RosterPage({ onOpenStudent }: { onOpenStudent: (id: number) => void }) {
+function RosterPage({ onOpenStudent }: { onOpenStudent: (id: number | null) => void }) {
   const [filter,    setFilter]    = useState<RosterFilter>("All"); // tab highlight
   const [rowFilter, setRowFilter] = useState<RosterFilter>("All"); // actual data
   const [rowsVis,   setRowsVis]   = useState(true);
@@ -4400,7 +4400,7 @@ function sortedMsgThreads() {
   });
 }
 
-function MessagesPage({ onOpenStudent }: { onOpenStudent: (id: number) => void }) {
+function MessagesPage({ onOpenStudent }: { onOpenStudent: (id: number | null) => void }) {
   const threads = sortedMsgThreads();
   const [activeId,   setActiveId]   = useState<number>(threads[0].id);
   const [search,     setSearch]     = useState("");
@@ -6342,7 +6342,7 @@ function AddResourceModal({ show, onClose }: { show: boolean; onClose: () => voi
 }
 
 // ─── Content (page router) ────────────────────────────────────────────────────
-function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number) => void }) {
+function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClose, activeLessonId, setActiveLessonId, onAssignLesson, onNewScript, onNewEvent, activeStudentId, onOpenStudent }: { page: NavId; view: ViewTab; onNavigate: (page: NavId) => void; toolsVisible: ToolsVisible; importOpen: boolean; onImportClose: () => void; activeLessonId: number | null; setActiveLessonId: (id: number | null) => void; onAssignLesson: (lesson: LessonItem) => void; onNewScript: () => void; onNewEvent: () => void; activeStudentId: number | null; onOpenStudent: (id: number | null) => void }) {
   const [displayPage,    setDisplayPage]    = useState<NavId>(page);
   const [vis,            setVis]            = useState(true);
   const [slideDir,       setSlideDir]       = useState<"left" | "right">("right");
@@ -6379,7 +6379,7 @@ function Content({ page, view, onNavigate, toolsVisible, importOpen, onImportClo
         transition: "opacity 160ms ease, transform 160ms ease",
       }}>
         {displayStudentId !== null ? (
-          <StudentProfilePage studentId={displayStudentId} onBack={() => onOpenStudent(-1)} onOpenStudent={onOpenStudent} />
+          <StudentProfilePage studentId={displayStudentId} onBack={() => onOpenStudent(null)} onOpenStudent={onOpenStudent} onNavigate={onNavigate} />
         ) : (
           <>
             {displayPage === 1 && (
@@ -6467,7 +6467,7 @@ export default function Home() {
           onNewScript={() => setNewScriptOpen(true)}
           onNewEvent={() => setNewEventOpen(true)}
           activeStudentId={activeStudentId}
-          onOpenStudent={(id) => setActiveStudentId(id)}
+          onOpenStudent={(id) => setActiveStudentId(id ?? null)}
         />
       </div>
       <AddStudentModal show={addStudentOpen} onClose={() => setAddStudentOpen(false)} />
