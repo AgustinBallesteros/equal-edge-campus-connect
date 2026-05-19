@@ -6078,13 +6078,14 @@ function ActivitiesPage() {
                         {/* ⋮ Menu */}
                         <div style={{ position: "relative" }}>
                           <button
+                            onMouseDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === item.id ? null : item.id); }}
                             style={{ width: 32, height: 32, borderRadius: 6, border: "none", background: openMenu === item.id ? "#F0F0F5" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A4A55" }}
                           >
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="12.5" r="1.5"/></svg>
                           </button>
                           {openMenu === item.id && (
-                            <div onClick={e => e.stopPropagation()} style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 50, background: "#fff", border: BORDER, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "4px 0", minWidth: 180 }}>
+                            <div onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 50, background: "#fff", border: BORDER, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", padding: "4px 0", minWidth: 180 }}>
                               <button onClick={() => openDetail(item.id, false)} style={actMenuItemStyle}>View Details</button>
                               <button onClick={() => nudge(item)} style={actMenuItemStyle}>Nudge Incomplete</button>
                               <button onClick={() => openDetail(item.id, true)} style={actMenuItemStyle}>Edit</button>
