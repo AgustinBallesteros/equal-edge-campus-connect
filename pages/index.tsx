@@ -6079,10 +6079,11 @@ function NewActivityModal({ show, onClose }: { show: boolean; onClose: () => voi
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [dueDate,     setDueDate]     = useState<string | null>(null);
-  const [assignTab,   setAssignTab]   = useState<AssignTab>("Individual Students");
-  const [selected,    setSelected]    = useState<Set<number>>(new Set());
-  const [query,       setQuery]       = useState("");
-  const [subTasks,    setSubTasks]    = useState<{ id: number; title: string; duration: number }[]>([]);
+  const [assignTab,      setAssignTab]      = useState<AssignTab>("Individual Students");
+  const [selected,       setSelected]       = useState<Set<number>>(new Set());
+  const [selectedGroupId,setSelectedGroupId]= useState<number | null>(null);
+  const [query,          setQuery]          = useState("");
+  const [subTasks,       setSubTasks]       = useState<{ id: number; title: string; duration: number }[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -6096,7 +6097,7 @@ function NewActivityModal({ show, onClose }: { show: boolean; onClose: () => voi
         setMounted(false);
         setTitle(""); setDescription(""); setDueDate(null);
         setAssignTab("Individual Students"); setSelected(new Set());
-        setQuery(""); setSubTasks([]);
+        setSelectedGroupId(null); setQuery(""); setSubTasks([]);
       }, 220);
       return () => clearTimeout(t);
     }
@@ -6257,7 +6258,21 @@ function NewActivityModal({ show, onClose }: { show: boolean; onClose: () => voi
             )}
 
             {assignTab === "Group" && (
-              <div style={{ border: BORDER, borderRadius: 8, padding: "14px", fontSize: 13, color: "#8E8E97" }}>Group selection coming soon.</div>
+              <div style={{ border: BORDER, borderRadius: 8, overflow: "hidden" }}>
+                {STAFF.map((s, i) => {
+                  const count = ALUMNI.filter(a => a.staffMemberId === s.id).length;
+                  const checked = selectedGroupId === s.id;
+                  return (
+                    <div key={s.id} onClick={() => setSelectedGroupId(checked ? null : s.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", background: checked ? "#F5F6FF" : "#fff", borderBottom: i < STAFF.length - 1 ? BORDER : undefined, transition: `background ${MS.dFast} ${MS.eOut}` }}>
+                      <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, border: checked ? "none" : "1.5px solid #C5C5CC", background: checked ? "#3E4FD3" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", transition: `background ${MS.dFast} ${MS.eOut}` }}>
+                        {checked && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5L8.5 2" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: "#121216", flex: 1 }}>{s.name}&apos;s Group</span>
+                      <span style={{ fontSize: 13, color: "#A0A0AA" }}>{count} student{count !== 1 ? "s" : ""}</span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 
@@ -6324,10 +6339,11 @@ function EditActivityModal({ activity, show, onClose }: { activity: ActivityItem
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [dueDate,     setDueDate]     = useState<string | null>(null);
-  const [assignTab,   setAssignTab]   = useState<AssignTab>("Individual Students");
-  const [selected,    setSelected]    = useState<Set<number>>(new Set());
-  const [query,       setQuery]       = useState("");
-  const [subTasks,    setSubTasks]    = useState<{ id: number; title: string; duration: number }[]>([]);
+  const [assignTab,      setAssignTab]      = useState<AssignTab>("Individual Students");
+  const [selected,       setSelected]       = useState<Set<number>>(new Set());
+  const [selectedGroupId,setSelectedGroupId]= useState<number | null>(null);
+  const [query,          setQuery]          = useState("");
+  const [subTasks,       setSubTasks]       = useState<{ id: number; title: string; duration: number }[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -6344,6 +6360,13 @@ function EditActivityModal({ activity, show, onClose }: { activity: ActivityItem
         setSelected(new Set(activated.slice(0, activity.assignedTo.count).map(a => a.id)));
       } else {
         setSelected(new Set());
+      }
+      if (activity.assignedTo.type === "staff") {
+        const staffName = activity.assignedTo.type === "staff" ? activity.assignedTo.staffName : "";
+        const match = STAFF.find(s => s.name === staffName);
+        setSelectedGroupId(match?.id ?? null);
+      } else {
+        setSelectedGroupId(null);
       }
       setSubTasks(activity.subTasks.map(st => ({ id: st.id, title: st.title, duration: st.durationMin })));
       setMounted(true);
@@ -6472,7 +6495,21 @@ function EditActivityModal({ activity, show, onClose }: { activity: ActivityItem
               </>
             )}
             {assignTab === "Group" && (
-              <div style={{ border: BORDER, borderRadius: 8, padding: "14px", fontSize: 13, color: "#8E8E97" }}>Group selection coming soon.</div>
+              <div style={{ border: BORDER, borderRadius: 8, overflow: "hidden" }}>
+                {STAFF.map((s, i) => {
+                  const count = ALUMNI.filter(a => a.staffMemberId === s.id).length;
+                  const checked = selectedGroupId === s.id;
+                  return (
+                    <div key={s.id} onClick={() => setSelectedGroupId(checked ? null : s.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", cursor: "pointer", background: checked ? "#F5F6FF" : "#fff", borderBottom: i < STAFF.length - 1 ? BORDER : undefined, transition: `background ${MS.dFast} ${MS.eOut}` }}>
+                      <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, border: checked ? "none" : "1.5px solid #C5C5CC", background: checked ? "#3E4FD3" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", transition: `background ${MS.dFast} ${MS.eOut}` }}>
+                        {checked && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5L8.5 2" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: "#121216", flex: 1 }}>{s.name}&apos;s Group</span>
+                      <span style={{ fontSize: 13, color: "#A0A0AA" }}>{count} student{count !== 1 ? "s" : ""}</span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 
