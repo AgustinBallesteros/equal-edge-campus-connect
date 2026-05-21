@@ -6614,6 +6614,131 @@ const ACT_HEADERS: { label: string; sortKey: ActivitySortKey | null; center: boo
   { label: "",            sortKey: null,         center: false },
 ];
 
+// ─── Activity Calendar View ───────────────────────────────────────────────────
+function ActivityCalendarView({ onOpenActivity }: { onOpenActivity: (id: number) => void }) {
+  const [calYear,  setCalYear]  = useState(CAL_TODAY_YEAR);
+  const [calMonth, setCalMonth] = useState(CAL_TODAY_MONTH);
+
+  function prevMonth() {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  }
+  function goToday() { setCalYear(CAL_TODAY_YEAR); setCalMonth(CAL_TODAY_MONTH); }
+
+  const cells        = buildCalendarGrid(calYear, calMonth);
+  const weeks        = cells.length / 7;
+  const isThisMonth  = calYear === CAL_TODAY_YEAR && calMonth === CAL_TODAY_MONTH;
+
+  // Activities with a due date this month
+  const monthActs = ACTIVITY_ITEMS.filter(a => {
+    if (!a.dueDate) return false;
+    const d = new Date(a.dueDate + "T00:00");
+    return d.getFullYear() === calYear && d.getMonth() === calMonth;
+  });
+
+  function actsForDay(day: number): ActivityItem[] {
+    return monthActs.filter(a => new Date(a.dueDate! + "T00:00").getDate() === day);
+  }
+
+  function pillColors(status: ActivityStatus): { bg: string; color: string } {
+    if (status === "Overdue")   return { bg: "#FEE2E2", color: "#991B1B" };
+    if (status === "Completed") return { bg: "#DCFCE7", color: "#166534" };
+    return { bg: "#E0E7FF", color: "#3730A3" };
+  }
+
+  const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Nav bar */}
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "10px 24px", borderBottom: BORDER }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#121216", minWidth: 96 }}>
+          {MONTH_NAMES[calMonth].slice(0, 3)} {calYear}
+        </span>
+        <button onClick={prevMonth} style={{ width: 26, height: 26, border: BORDER, borderRadius: 6, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="6" height="10" viewBox="0 0 6 10" fill="none"><path d="M5 1L1 5l4 4" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
+        <button onClick={nextMonth} style={{ width: 26, height: 26, border: BORDER, borderRadius: 6, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="6" height="10" viewBox="0 0 6 10" fill="none"><path d="M1 1l4 4-4 4" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
+        <button onClick={goToday} style={{ height: 26, paddingInline: 12, border: BORDER, borderRadius: 6, background: "#fff", fontSize: 12, fontWeight: 500, color: "#121216", fontFamily: "var(--font-inter)", cursor: "pointer" }}>
+          Today
+        </button>
+      </div>
+
+      {/* DOW header */}
+      <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: BORDER, background: "#FAFAFA" }}>
+        {DOW_LABELS.map((d, i) => (
+          <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 500, color: "#8E8E97", padding: "7px 0", borderRight: i < 6 ? BORDER : "none" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar grid */}
+      <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridTemplateRows: `repeat(${weeks}, 1fr)`, overflow: "auto" }}>
+        {cells.map((day, i) => {
+          const isToday   = isThisMonth && day === CAL_TODAY_DAY;
+          const isWeekend = i % 7 === 0 || i % 7 === 6;
+          const acts      = day ? actsForDay(day) : [];
+          const col       = i % 7;
+          const row       = Math.floor(i / weeks);
+          return (
+            <div
+              key={i}
+              style={{
+                borderRight: col < 6 ? BORDER : "none",
+                borderBottom: row < weeks - 1 ? BORDER : "none",
+                background: isWeekend && day ? "#FAFAFA" : "#fff",
+                padding: "6px 8px",
+                display: "flex", flexDirection: "column", gap: 3, overflow: "hidden",
+                minHeight: 0,
+              }}
+            >
+              {/* Day number */}
+              <div style={{ display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
+                <span style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: isToday ? "#3E4FD3" : "transparent",
+                  color: isToday ? "#fff" : day ? "#121216" : "transparent",
+                  fontSize: 12, fontWeight: isToday ? 700 : 400,
+                }}>
+                  {day ?? ""}
+                </span>
+              </div>
+
+              {/* Activity pills */}
+              {acts.map(a => {
+                const { bg, color } = pillColors(a.status);
+                return (
+                  <div
+                    key={a.id}
+                    onClick={() => onOpenActivity(a.id)}
+                    title={a.title}
+                    style={{
+                      background: bg, color, fontSize: 11, fontWeight: 500,
+                      borderRadius: 4, padding: "2px 5px", cursor: "pointer",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      lineHeight: 1.5, flexShrink: 0,
+                    }}
+                  >
+                    {a.title}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ActivitiesPage({ onOpenActivity }: { onOpenActivity: (id: number) => void }) {
   const [view,        setView]        = useState<ActivityView>("Activities");
   const [filter,      setFilter]      = useState<ActivityFilter>("All");
@@ -6763,7 +6888,9 @@ function ActivitiesPage({ onOpenActivity }: { onOpenActivity: (id: number) => vo
             </div>
           </div>
 
-          {view === "Activities" ? (
+          {view === "Activities" && listView === "Calendar" ? (
+            <ActivityCalendarView onOpenActivity={onOpenActivity} />
+          ) : view === "Activities" ? (
             <>
               {/* ── Status filter tabs ── */}
               <div style={{ flexShrink: 0, display: "flex", alignItems: "center", padding: "10px 24px", borderBottom: BORDER }}>
